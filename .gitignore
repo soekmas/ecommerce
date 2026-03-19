@@ -1,0 +1,27 @@
+# Backend
+backend/.env
+backend/api.exe
+backend/tmp_app.exe
+backend/tmp_app.exe~
+backend/tmp_server
+backend/server_log.txt
+backend/bin/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
