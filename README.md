@@ -20,6 +20,12 @@ cd backend
 go run cmd/api/main.go
 ```
 
+## Cara Import Database
+Jika Anda ingin menggunakan data yang sudah ada, Anda bisa melakukan import database:
+```bash
+docker exec -i ecommerce_db psql -U root ecommerce < ecommerce_dump.sql
+```
+
 ## Akses Layanan
 - **Frontend**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:8080](http://localhost:8080)
