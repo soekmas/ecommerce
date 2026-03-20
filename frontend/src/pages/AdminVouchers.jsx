@@ -16,6 +16,13 @@ const AdminVouchers = () => {
   const [promoRules, setPromoRules] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+
+  // Special Prices filters
+  const [prodSearch, setProdSearch] = useState('');
+  const [prodCategory, setProdCategory] = useState('');
+  const [prodPage, setProdPage] = useState(1);
+  const [prodLoading, setProdLoading] = useState(false);
 
   // Modal state
   const [showVoucherModal, setShowVoucherModal] = useState(false);
@@ -24,7 +31,7 @@ const AdminVouchers = () => {
   const [currentItem, setCurrentItem] = useState(null);
   const [currentProduct, setCurrentProduct] = useState(null);
 
-  const defaultVoucher = { code: '', discount_type: 'percentage', discount_value: '', min_purchase: '', max_discount: '', max_total_usage: '', max_usage_per_user: '', target_type: 'global', target_value: '', start_date: '', end_date: '' };
+  const defaultVoucher = { code: '', discount_type: 'percentage', discount_value: '', min_purchase: '', max_discount: '', max_total_usage: '', max_usage_per_user: '', target_type: 'global', target_value: '', start_date: '', end_date: '', is_active: true };
   const defaultPromo = { name: '', target_type: 'global', target_value: '', discount_type: 'percentage', discount_value: '', start_date: '', end_date: '', stackable_with: false };
   const defaultSpecialPrice = { special_price: '', special_price_start: '', special_price_end: '', special_price_target: 'global', special_price_target_value: '' };
 
@@ -37,20 +44,51 @@ const AdminVouchers = () => {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [vRes, pRes, prodRes] = await Promise.all([
+      const [vRes, pRes, catRes] = await Promise.all([
         api.get('/admin/vouchers'),
         api.get('/admin/promorules'),
-        api.get('/catalog/products'),
+        api.get('/admin/categories'),
       ]);
       setVouchers(vRes.data.data || []);
       setPromoRules(pRes.data.data || []);
-      setProducts(prodRes.data.data || []);
+      setCategories(catRes.data.data || []);
+      // Fetch initial products for Special Prices
+      fetchProducts(1);
     } catch (err) {
       console.error('Failed to fetch promo data:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchProducts = async (page = 1, search = prodSearch, category = prodCategory) => {
+    setProdLoading(true);
+    try {
+      const res = await api.get('/catalog/products', {
+        params: {
+          page: page,
+          limit: 10,
+          search: search,
+          category_id: category,
+        }
+      });
+      setProducts(res.data.data || []);
+      setProdPage(page);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    } finally {
+      setProdLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'Special Prices') {
+      const timer = setTimeout(() => {
+        fetchProducts(1);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [prodSearch, prodCategory, activeTab]);
 
   // ── Voucher handlers ──
   const openVoucherModal = (item = null) => {
@@ -67,6 +105,7 @@ const AdminVouchers = () => {
       target_value: item.target_value || '',
       start_date: item.start_date?.substring(0, 10),
       end_date: item.end_date?.substring(0, 10),
+      is_active: item.is_active,
     } : defaultVoucher);
     setShowVoucherModal(true);
   };
@@ -85,6 +124,10 @@ const AdminVouchers = () => {
       end_date: new Date(voucherForm.end_date).toISOString(),
     };
     try {
+      if (new Date(voucherForm.end_date) <= new Date(voucherForm.start_date)) {
+        alert('End date must be after start date');
+        return;
+      }
       if (currentItem) await api.put(`/admin/vouchers/${currentItem.id}`, payload);
       else await api.post('/admin/vouchers', payload);
       setShowVoucherModal(false);
@@ -173,7 +216,7 @@ const AdminVouchers = () => {
     try {
       await api.put(`/admin/products/${currentProduct.id}`, payload);
       setShowSpecialPriceModal(false);
-      fetchAll();
+      fetchProducts(prodPage);
       alert('Special price saved!');
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to update');
@@ -196,15 +239,23 @@ const AdminVouchers = () => {
       special_price_end: null,
     };
     await api.put(`/admin/products/${product.id}`, payload);
-    fetchAll();
+    fetchProducts(prodPage);
   };
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
   const formatRp = (v) => v != null ? `Rp ${Number(v).toLocaleString('id-ID')}` : '-';
 
-  const isActive = (start, end) => {
+  const isActive = (v) => {
+    if (v.is_active === false) return false;
     const now = new Date();
-    return new Date(start) <= now && now <= new Date(end);
+    return new Date(v.start_date) <= now && now <= new Date(v.end_date);
+  };
+
+  const generateCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    setVoucherForm({ ...voucherForm, code });
   };
 
   return (
@@ -213,7 +264,7 @@ const AdminVouchers = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Voucher & Discount</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Discount Management</h1>
           <p className="text-gray-500 mt-1">Manage vouchers, promo rules and special prices</p>
         </div>
         {activeTab === 'Vouchers' && (
@@ -283,9 +334,13 @@ const AdminVouchers = () => {
                         <td className="px-8 py-5 text-sm text-gray-600">{v.current_usage} / {v.max_total_usage || '∞'}</td>
                         <td className="px-8 py-5 text-xs text-gray-500">{formatDate(v.start_date)} – {formatDate(v.end_date)}</td>
                         <td className="px-8 py-5">
-                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${isActive(v.start_date, v.end_date) ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                            {isActive(v.start_date, v.end_date) ? 'Active' : 'Inactive'}
-                          </span>
+                          {!v.is_active ? (
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-red-50 text-red-600">Disabled</span>
+                          ) : isActive(v) ? (
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-50 text-green-600">Active</span>
+                          ) : (
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-400">Scheduled</span>
+                          )}
                         </td>
                         <td className="px-8 py-5 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -338,8 +393,8 @@ const AdminVouchers = () => {
                         </td>
                         <td className="px-8 py-5 text-xs text-gray-500">{formatDate(r.start_date)} – {formatDate(r.end_date)}</td>
                         <td className="px-8 py-5">
-                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${isActive(r.start_date, r.end_date) ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                            {isActive(r.start_date, r.end_date) ? 'Active' : 'Inactive'}
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${isActive(r) ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                            {isActive(r) ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td className="px-8 py-5 text-right">
@@ -358,64 +413,120 @@ const AdminVouchers = () => {
 
           {/* ── Special Prices Tab ── */}
           {activeTab === 'Special Prices' && (
-            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50/50 text-gray-500 text-xs font-bold uppercase">
-                    <tr>
-                      <th className="px-8 py-5">Product</th>
-                      <th className="px-8 py-5">Base Price</th>
-                      <th className="px-8 py-5">Special Price</th>
-                      <th className="px-8 py-5">Period</th>
-                      <th className="px-8 py-5">Discount</th>
-                      <th className="px-8 py-5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {products.map(p => {
-                      const discountPct = p.special_price ? Math.round((1 - p.special_price / p.base_price) * 100) : null;
-                      return (
-                        <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-8 py-5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl border border-gray-100 overflow-hidden bg-gray-50 flex-shrink-0">
-                                {p.image_urls?.[0] ? <img src={getFullUrl(p.image_urls[0])} alt="" className="w-full h-full object-cover" /> : null}
+            <div className="space-y-6">
+              {/* Filters */}
+              <div className="flex flex-col md:flex-row gap-4 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                <div className="flex-1 relative">
+                  <input 
+                    type="text" 
+                    placeholder="Search product name or SKU..." 
+                    className={inputClass}
+                    value={prodSearch}
+                    onChange={e => setProdSearch(e.target.value)}
+                  />
+                </div>
+                <div className="w-full md:w-64">
+                  <select 
+                    className={inputClass}
+                    value={prodCategory}
+                    onChange={e => setProdCategory(e.target.value)}
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden relative">
+                {prodLoading && (
+                  <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                    <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50/50 text-gray-500 text-xs font-bold uppercase">
+                      <tr>
+                        <th className="px-8 py-5">Product</th>
+                        <th className="px-8 py-5">Base Price</th>
+                        <th className="px-8 py-5">Special Price</th>
+                        <th className="px-8 py-5">Period</th>
+                        <th className="px-8 py-5">Discount</th>
+                        <th className="px-8 py-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {products.length === 0 && !prodLoading && (
+                        <tr><td colSpan={6} className="text-center py-12 text-gray-400">No products found</td></tr>
+                      )}
+                      {products.map(p => {
+                        const discountPct = p.special_price ? Math.round((1 - p.special_price / p.base_price) * 100) : null;
+                        return (
+                          <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <td className="px-8 py-5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl border border-gray-100 overflow-hidden bg-gray-50 flex-shrink-0">
+                                  {p.image_urls?.[0] ? <img src={getFullUrl(p.image_urls[0])} alt="" className="w-full h-full object-cover" /> : null}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-900 text-sm">{p.name}</p>
+                                  <p className="text-[10px] text-blue-600 font-bold uppercase">{p.sku}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-bold text-gray-900 text-sm">{p.name}</p>
-                                <p className="text-[10px] text-blue-600 font-bold uppercase">{p.sku}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-5 font-bold text-gray-700">{formatRp(p.base_price)}</td>
-                          <td className="px-8 py-5">
-                            {p.special_price ? (
-                              <span className="font-bold text-green-600">{formatRp(p.special_price)}</span>
-                            ) : (
-                              <span className="text-gray-300 text-sm">—</span>
-                            )}
-                          </td>
-                          <td className="px-8 py-5 text-xs text-gray-500">
-                            {p.special_price ? `${formatDate(p.special_price_start)} – ${formatDate(p.special_price_end)}` : '—'}
-                          </td>
-                          <td className="px-8 py-5">
-                            {discountPct != null && (
-                              <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-red-50 text-red-600">-{discountPct}%</span>
-                            )}
-                          </td>
-                          <td className="px-8 py-5 text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => openSpecialPriceModal(p)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"><Pencil size={16} /></button>
-                              {p.special_price && (
-                                <button onClick={() => clearSpecialPrice(p)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all"><X size={16} /></button>
+                            </td>
+                            <td className="px-8 py-5 font-bold text-gray-700">{formatRp(p.base_price)}</td>
+                            <td className="px-8 py-5">
+                              {p.special_price ? (
+                                <span className="font-bold text-green-600">{formatRp(p.special_price)}</span>
+                              ) : (
+                                <span className="text-gray-300 text-sm">—</span>
                               )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="px-8 py-5 text-xs text-gray-500">
+                              {p.special_price ? `${formatDate(p.special_price_start)} – ${formatDate(p.special_price_end)}` : '—'}
+                            </td>
+                            <td className="px-8 py-5">
+                              {discountPct != null && (
+                                <span className="text-xs font-extrabold px-3 py-1 rounded-full bg-red-50 text-red-600">-{discountPct}%</span>
+                              )}
+                            </td>
+                            <td className="px-8 py-5 text-right">
+                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => openSpecialPriceModal(p)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"><Pencil size={16} /></button>
+                                {p.special_price && (
+                                  <button onClick={() => clearSpecialPrice(p)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all"><X size={16} /></button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-8 py-5 bg-gray-50/30 border-t border-gray-50">
+                  <p className="text-sm text-gray-500 font-medium">
+                    Page <span className="text-gray-900 font-bold">{prodPage}</span>
+                  </p>
+                  <div className="flex gap-2">
+                    <button 
+                      disabled={prodPage === 1 || prodLoading}
+                      onClick={() => fetchProducts(prodPage - 1)}
+                      className="px-4 py-2 text-sm font-bold border border-gray-200 rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button 
+                      disabled={products.length < 10 || prodLoading}
+                      onClick={() => fetchProducts(prodPage + 1)}
+                      className="px-4 py-2 text-sm font-bold border border-gray-200 rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -455,7 +566,22 @@ const AdminVouchers = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
               <label className={labelClass}>Voucher Code</label>
-              <input required value={voucherForm.code} onChange={e => setVoucherForm({...voucherForm, code: e.target.value})} placeholder="e.g. HEMAT10" className={inputClass} />
+              <div className="relative">
+                <input 
+                  required 
+                  value={voucherForm.code} 
+                  onChange={e => setVoucherForm({...voucherForm, code: e.target.value.toUpperCase()})} 
+                  placeholder="e.g. HEMAT10" 
+                  className={`${inputClass} pr-20 font-mono`} 
+                />
+                <button 
+                  type="button"
+                  onClick={generateCode}
+                  className="absolute right-2 top-1.5 px-2 py-1 text-[10px] font-bold bg-blue-50 text-blue-600 rounded-md hover:bg-blue-600 hover:text-white transition-all"
+                >
+                  Generate
+                </button>
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className={labelClass}>Discount Type</label>
@@ -512,6 +638,20 @@ const AdminVouchers = () => {
                 </div>
               )}
             </div>
+          </div>
+          <div className="pt-4 border-t border-gray-50">
+            <label className="flex items-center gap-3 cursor-pointer group bg-gray-50/50 p-4 rounded-2xl border border-gray-100 hover:bg-white hover:border-blue-200 transition-all">
+              <input 
+                type="checkbox" 
+                checked={voucherForm.is_active} 
+                onChange={e => setVoucherForm({...voucherForm, is_active: e.target.checked})} 
+                className="w-5 h-5 rounded-lg border-gray-300 text-blue-600 focus:ring-blue-600 cursor-pointer" 
+              />
+              <div className="flex-1">
+                <span className="block text-sm font-bold text-gray-900">Active Status</span>
+                <span className="block text-xs text-gray-500 font-medium">If disabled, this voucher cannot be used regardless of the dates</span>
+              </div>
+            </label>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">

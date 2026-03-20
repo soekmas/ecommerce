@@ -135,26 +135,44 @@ const ProductDetail = () => {
 
           <div className="space-y-6 pt-6 border-t border-gray-100">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[#1d1d1f] uppercase tracking-tight">Quantity</span>
+              <div className="flex flex-col">
+                <span className="text-[13px] font-semibold text-[#1d1d1f] uppercase tracking-tight">Quantity</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className={`w-1.5 h-1.5 rounded-full ${product.stock > 10 ? 'bg-green-500' : product.stock > 0 ? 'bg-orange-500' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'}`}></div>
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                    {product.stock > 0 ? `${product.stock} Units Available` : 'Out of Stock'}
+                  </span>
+                </div>
+              </div>
               <div className="flex items-center bg-[#f5f5f7] rounded-full p-1 h-10">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-full flex items-center justify-center text-[#1d1d1f] hover:bg-white hover:shadow-sm rounded-full transition-all"
+                  disabled={product.stock === 0}
+                  className="w-10 h-full flex items-center justify-center text-[#1d1d1f] hover:bg-white hover:shadow-sm rounded-full transition-all disabled:opacity-30"
                 > - </button>
-                <span className="w-10 text-center font-semibold text-[15px] text-[#1d1d1f]">{quantity}</span>
+                <span className="w-10 text-center font-semibold text-[15px] text-[#1d1d1f]">{product.stock === 0 ? 0 : quantity}</span>
                 <button 
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-full flex items-center justify-center text-[#1d1d1f] hover:bg-white hover:shadow-sm rounded-full transition-all"
+                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                  disabled={product.stock === 0 || quantity >= product.stock}
+                  className="w-10 h-full flex items-center justify-center text-[#1d1d1f] hover:bg-white hover:shadow-sm rounded-full transition-all disabled:opacity-30"
                 > + </button>
               </div>
             </div>
 
             <button 
               onClick={handleAddToCart}
-              disabled={added}
-              className={`w-full py-4 rounded-2xl text-[17px] font-medium transition-all duration-300 ${added ? 'bg-[#32d74b] text-white cursor-default' : 'bg-[#0071e3] text-white hover:bg-[#0077ed] active:scale-[0.98]'}`}
+              disabled={added || product.stock === 0}
+              className={`w-full py-4 rounded-2xl text-[17px] font-medium transition-all duration-300 ${
+                product.stock === 0 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : added 
+                    ? 'bg-[#32d74b] text-white cursor-default' 
+                    : 'bg-[#0071e3] text-white hover:bg-[#0077ed] active:scale-[0.98]'
+              }`}
             >
-              {added ? (
+              {product.stock === 0 ? (
+                <span>Currently Out of Stock</span>
+              ) : added ? (
                 <div className="flex items-center justify-center gap-2">
                   <Check size={20} weight="bold" />
                   <span>Added to Bag</span>

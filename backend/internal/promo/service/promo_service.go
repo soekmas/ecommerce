@@ -68,6 +68,12 @@ func (s *promoService) CreateVoucher(ctx context.Context, req *domain.VoucherReq
 	if targetType == "" {
 		targetType = "global"
 	}
+	// 1. Check uniqueness
+	existing, _ := s.promoRepo.GetVoucherByCode(ctx, strings.ToUpper(strings.TrimSpace(req.Code)))
+	if existing != nil {
+		return fmt.Errorf("voucher code already exists")
+	}
+
 	voucher := &domain.Voucher{
 		Code:            strings.ToUpper(strings.TrimSpace(req.Code)),
 		DiscountType:    req.DiscountType,
@@ -113,6 +119,7 @@ func (s *promoService) UpdateVoucher(ctx context.Context, id uint, req *domain.V
 	voucher.StartDate = req.StartDate
 	voucher.EndDate = req.EndDate
 	voucher.MaxTotalUsage = req.MaxTotalUsage
+	voucher.IsActive = req.IsActive
 	return s.promoRepo.UpdateVoucher(ctx, voucher)
 }
 
@@ -123,7 +130,11 @@ func (s *promoService) DeleteVoucher(ctx context.Context, id uint) error {
 func (s *promoService) ValidateVoucher(ctx context.Context, code string, cartTotal int64, userEmail string) (*domain.Voucher, int64, error) {
 	voucher, err := s.promoRepo.GetVoucherByCode(ctx, strings.ToUpper(code))
 	if err != nil {
-		return nil, 0, fmt.Errorf("voucher not found or inactive")
+		return nil, 0, fmt.Errorf("voucher not found")
+	}
+
+	if !voucher.IsActive {
+		return nil, 0, fmt.Errorf("voucher is currently disabled")
 	}
 
 	now := time.Now()

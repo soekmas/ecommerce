@@ -15,6 +15,7 @@ import AdminOrders from './pages/AdminOrders';
 import VerifyEmail from './pages/VerifyEmail';
 import AdminCategories from './pages/AdminCategories';
 import AdminUsers from './pages/AdminUsers';
+import AdminSalesReport from './pages/AdminSalesReport';
 import Profile from './pages/Profile';
 import Footer from './components/Footer';
 
@@ -32,6 +33,7 @@ function App() {
         <Route path="/admin/vouchers" element={<ProtectedRoute adminOnly={true}><AdminLayout><AdminVouchers /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/orders" element={<ProtectedRoute adminOnly={true}><AdminLayout><AdminOrders /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/categories" element={<ProtectedRoute adminOnly={true}><AdminLayout><AdminCategories /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/reports/sales" element={<ProtectedRoute adminOnly={true}><AdminLayout><AdminSalesReport /></AdminLayout></ProtectedRoute>} />
 
         {/* User Routes */}
         <Route path="*" element={

@@ -34,7 +34,8 @@ import (
 	"github.com/vibecoding/ecommerce/pkg/logger"
 	"github.com/vibecoding/ecommerce/pkg/mailer"
 	"github.com/vibecoding/ecommerce/pkg/xendit"
-	"github.com/vibecoding/ecommerce/internal/promo/scheduler"
+	promoSchedulerPkg "github.com/vibecoding/ecommerce/internal/promo/scheduler"
+	orderSchedulerPkg "github.com/vibecoding/ecommerce/internal/order/scheduler"
 )
 
 func main() {
@@ -100,9 +101,12 @@ func main() {
 	orderService := orderSvc.NewOrderService(orderRepoImpl, userRepoImpl, productRepoImpl, promoRepoImpl, biteshipClient, xenditClient, mailerSvc, notificationService)
 	orderHandler := handler.NewOrderHandler(orderService)
 
-	// --- Voucher Scheduler ---
-	promoScheduler := scheduler.NewVoucherScheduler(db)
+	// --- Schedulers ---
+	promoScheduler := promoSchedulerPkg.NewVoucherScheduler(db)
 	go promoScheduler.Start(context.Background())
+
+	orderScheduler := orderSchedulerPkg.NewOrderScheduler(orderService)
+	go orderScheduler.Start(context.Background())
 
 	// Setup HTTP Framework (Gin)
 	if cfg.AppEnv == "production" {
@@ -182,6 +186,7 @@ func main() {
 			admin.POST("/users/:id/approve", adminUserHandler.ApproveUser)
 
 			// Catalog Mgt
+			admin.GET("/categories", productHandler.GetCategories)
 			admin.POST("/categories", productHandler.CreateCategory)
 			admin.PUT("/categories/:id", productHandler.UpdateCategory)
 			admin.DELETE("/categories/:id", productHandler.DeleteCategory)
@@ -205,8 +210,13 @@ func main() {
 
 			// Order Mgt
 			admin.GET("/orders", orderHandler.AdminListAllOrders)
-			admin.POST("/orders/:id/payment", orderHandler.AdminProcessPayment) // Mock payment processor
+			admin.GET("/reports/sales", orderHandler.AdminGetSalesReport)
+			admin.POST("/orders/:id/payment", orderHandler.AdminProcessPayment)
+ // Mock payment processor
 			admin.POST("/orders/:id/awb", orderHandler.AdminGenerateAWB)
+			admin.POST("/orders/:id/cancel", orderHandler.AdminCancelOrder)
+			admin.POST("/orders/:id/deliver", orderHandler.AdminMarkDelivered)
+			admin.GET("/orders/:id/label", orderHandler.AdminGetLabel)
 		}
 	}
 

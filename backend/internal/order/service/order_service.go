@@ -313,11 +313,90 @@ func (s *orderService) ProcessPayment(ctx context.Context, orderID uint) error {
 	err = s.orderRepo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusPaid)
 	if err == nil {
 		go func() {
-			_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, string(domain.OrderStatusPaid))
-			_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Payment Confirmed", fmt.Sprintf("Payment for order %s has been confirmed.", order.OrderNumber))
+			if order.User.ID != 0 {
+				_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, string(domain.OrderStatusPaid))
+				_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Payment Confirmed", fmt.Sprintf("Payment for order %s has been confirmed.", order.OrderNumber))
+			}
 		}()
 	}
 	return err
+}
+
+func (s *orderService) CancelOrder(ctx context.Context, adminID, orderID uint) error {
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+
+	if order.Status == domain.OrderStatusCancelled || order.Status == domain.OrderStatusDelivered || order.Status == domain.OrderStatusShipped {
+		return errors.New("cannot cancel order in current status")
+	}
+
+	err = s.orderRepo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusCancelled)
+	if err != nil {
+		return err
+	}
+
+	// Revert stock
+	for _, item := range order.Items {
+		_ = s.productRepo.IncrementStock(ctx, item.ProductID, item.Quantity)
+	}
+
+	// Revert voucher usage
+	if order.AppliedVoucherID != nil {
+		_ = s.promoRepo.DecrementVoucherUsage(ctx, *order.AppliedVoucherID)
+	}
+
+	go func() {
+		if order.User.ID != 0 {
+			_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, "cancelled")
+			_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Order Cancelled", fmt.Sprintf("Your order %s has been cancelled by the administrator.", order.OrderNumber))
+		}
+	}()
+
+	return nil
+}
+
+func (s *orderService) MarkAsDelivered(ctx context.Context, adminID, orderID uint) error {
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+
+	if order.Status != domain.OrderStatusShipped {
+		return errors.New("only shipped orders can be marked as delivered")
+	}
+
+	err = s.orderRepo.UpdateOrderStatus(ctx, orderID, domain.OrderStatusDelivered)
+	if err == nil {
+		go func() {
+			_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, string(domain.OrderStatusDelivered))
+			_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Order Delivered", fmt.Sprintf("Your order %s has been delivered. Thank you for shopping!", order.OrderNumber))
+		}()
+	}
+	return err
+}
+
+func (s *orderService) GetShippingLabel(ctx context.Context, adminID, orderID uint) (string, error) {
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return "", err
+	}
+
+	if order.BiteshipOrderID == "" {
+		return "", errors.New("shipping label not available for this order")
+	}
+
+	resp, err := s.biteship.GetOrder(order.BiteshipOrderID)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.Courier.Link == "" {
+		return "", errors.New("shipping label link is empty from Biteship")
+	}
+
+	return resp.Courier.Link, nil
 }
 
 func (s *orderService) HandleXenditCallback(ctx context.Context, xenditID, status string) error {
@@ -336,8 +415,10 @@ func (s *orderService) HandleXenditCallback(ctx context.Context, xenditID, statu
 			_ = s.orderRepo.UpdateOrderStatus(ctx, order.ID, domain.OrderStatusCancelled)
 			// Notification
 			go func() {
-				_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, "cancelled (payment expired)")
-				_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Order Cancelled", fmt.Sprintf("Your order %s has been cancelled because the payment session expired.", order.OrderNumber))
+				if order.User.ID != 0 {
+					_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, "cancelled (payment expired)")
+					_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Order Cancelled", fmt.Sprintf("Your order %s has been cancelled because the payment session expired.", order.OrderNumber))
+				}
 			}()
 		}
 	}
@@ -384,12 +465,14 @@ func (s *orderService) GenerateAWB(ctx context.Context, adminID, orderID uint) e
 		return fmt.Errorf("biteship error: %s", resp.Message)
 	}
 
-	// Update order with AWB
-	err = s.orderRepo.UpdateOrderAWB(ctx, orderID, resp.Courier.TrackingID)
+	// Update order with AWB and Biteship Order ID
+	err = s.orderRepo.UpdateOrderAWB(ctx, orderID, resp.Courier.TrackingID, resp.ID)
 	if err == nil {
 		go func() {
-			_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, "shipped (AWB: "+resp.Courier.TrackingID+")")
-			_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Order Shipped", fmt.Sprintf("Your order %s is on its way! AWB: %s", order.OrderNumber, resp.Courier.TrackingID))
+			if order.User.ID != 0 {
+				_ = s.mailer.SendOrderStatusEmail(order.User.Email, order.User.Name, order.OrderNumber, "shipped (AWB: "+resp.Courier.TrackingID+")")
+				_ = s.notificationSvc.CreateNotification(ctx, order.UserID, "Order Shipped", fmt.Sprintf("Your order %s is on its way! AWB: %s", order.OrderNumber, resp.Courier.TrackingID))
+			}
 		}()
 	}
 	return err
@@ -419,4 +502,46 @@ func (s *orderService) ListAllOrders(ctx context.Context, adminID uint) ([]*doma
 	}
 
 	return s.orderRepo.ListAllOrders(ctx)
+}
+
+func (s *orderService) AutoCancelExpiredOrders(ctx context.Context) error {
+	expiryTime := time.Now().Add(-24 * time.Hour)
+	orders, err := s.orderRepo.GetExpiredPendingOrders(ctx, expiryTime)
+	if err != nil {
+		return err
+	}
+
+	for _, order := range orders {
+		slog.Info("Auto-cancelling expired order", "order_number", order.OrderNumber)
+		
+		err := s.orderRepo.UpdateOrderStatus(ctx, order.ID, domain.OrderStatusCancelled)
+		if err != nil {
+			slog.Error("Failed to update status for auto-cancel", "order_id", order.ID, "error", err)
+			continue
+		}
+
+		// Revert stock
+		for _, item := range order.Items {
+			_ = s.productRepo.IncrementStock(ctx, item.ProductID, item.Quantity)
+		}
+
+		// Revert voucher usage
+		if order.AppliedVoucherID != nil {
+			_ = s.promoRepo.DecrementVoucherUsage(ctx, *order.AppliedVoucherID)
+		}
+
+		// Notify user
+		go func(o *domain.Order) {
+			if o.User.ID != 0 {
+				_ = s.mailer.SendOrderStatusEmail(o.User.Email, o.User.Name, o.OrderNumber, "cancelled (payment expired)")
+				_ = s.notificationSvc.CreateNotification(ctx, o.UserID, "Order Cancelled", fmt.Sprintf("Your order %s has been cancelled because the payment session expired.", o.OrderNumber))
+			}
+		}(order)
+	}
+
+	return nil
+}
+
+func (s *orderService) GetSalesReport(ctx context.Context, adminID uint, filter *domain.OrderFilter) ([]*domain.Order, int64, error) {
+	return s.orderRepo.ListSalesReport(ctx, filter)
 }

@@ -19,9 +19,11 @@ func (c *biteshipClient) CreateOrder(req *OrderRequest) (*OrderResponse, error) 
 			Courier: struct {
 				TrackingID string `json:"tracking_id"`
 				WaybillID  string `json:"waybill_id"`
+				Link       string `json:"link"`
 			}{
 				TrackingID: fmt.Sprintf("AWB%dID", time.Now().Unix()),
 				WaybillID:  fmt.Sprintf("WB%dID", time.Now().Unix()),
+				Link:       "https://biteship.com/mock-label",
 			},
 		}, nil
 	}

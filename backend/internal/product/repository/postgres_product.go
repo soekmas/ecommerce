@@ -97,7 +97,14 @@ func (r *postgresProductRepository) ListProducts(ctx context.Context, filter dom
 		}
 		query = query.Order(column + " " + filter.Order)
 	} else {
-		query = query.Order("created_at desc") // Default sorting
+		query = query.Order("created_at desc, id desc") // Default sorting
+	}
+
+	if filter.Limit > 0 {
+		query = query.Limit(filter.Limit)
+	}
+	if filter.Offset > 0 {
+		query = query.Offset(filter.Offset)
 	}
 
 	err := query.Find(&products).Error
@@ -117,6 +124,11 @@ func (r *postgresProductRepository) DecrementStock(ctx context.Context, productI
 	return r.db.WithContext(ctx).Model(&domain.Product{}).
 		Where("id = ? AND stock >= ?", productID, quantity).
 		UpdateColumn("stock", gorm.Expr("stock - ?", quantity)).Error
+}
+func (r *postgresProductRepository) IncrementStock(ctx context.Context, productID uint, quantity int) error {
+	return r.db.WithContext(ctx).Model(&domain.Product{}).
+		Where("id = ?", productID).
+		UpdateColumn("stock", gorm.Expr("stock + ?", quantity)).Error
 }
 
 func (r *postgresProductRepository) CountProducts(ctx context.Context) (int64, error) {

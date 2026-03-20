@@ -84,6 +84,7 @@ type VoucherRequest struct {
 	StartDate       time.Time    `json:"start_date" binding:"required"`
 	EndDate         time.Time    `json:"end_date" binding:"required"`
 	MaxTotalUsage   int          `json:"max_total_usage"`
+	IsActive        bool         `json:"is_active"`
 }
 
 type PromoRepository interface {
@@ -101,6 +102,7 @@ type PromoRepository interface {
 	UpdateVoucher(ctx context.Context, voucher *Voucher) error
 	DeleteVoucher(ctx context.Context, id uint) error
 	IncrementVoucherUsage(ctx context.Context, id uint) error
+	DecrementVoucherUsage(ctx context.Context, id uint) error
 	CountActiveVouchers(ctx context.Context) (int64, error)
 }
 

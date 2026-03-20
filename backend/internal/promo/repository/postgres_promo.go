@@ -67,7 +67,7 @@ func (r *postgresPromoRepository) ListVouchers(ctx context.Context) ([]*domain.V
 
 func (r *postgresPromoRepository) GetVoucherByCode(ctx context.Context, code string) (*domain.Voucher, error) {
 	var voucher domain.Voucher
-	err := r.db.WithContext(ctx).Where("code = ? AND is_active = true", code).First(&voucher).Error
+	err := r.db.WithContext(ctx).Where("code = ?", code).First(&voucher).Error
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +95,12 @@ func (r *postgresPromoRepository) IncrementVoucherUsage(ctx context.Context, id 
 	return r.db.WithContext(ctx).Model(&domain.Voucher{}).
 		Where("id = ? AND current_usage < max_total_usage", id).
 		UpdateColumn("current_usage", gorm.Expr("current_usage + ?", 1)).Error
+}
+
+func (r *postgresPromoRepository) DecrementVoucherUsage(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Model(&domain.Voucher{}).
+		Where("id = ? AND current_usage > 0", id).
+		UpdateColumn("current_usage", gorm.Expr("current_usage - ?", 1)).Error
 }
 
 func (r *postgresPromoRepository) CountActiveVouchers(ctx context.Context) (int64, error) {

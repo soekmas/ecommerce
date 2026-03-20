@@ -37,6 +37,7 @@ const AdminLayout = ({ children }) => {
       items: [
         { name: 'Dashboard', icon: <SquaresFour size={20} weight="bold" />, path: '/admin' },
         { name: 'Analytics', icon: <ChartBar size={20} weight="bold" />, path: '/admin/analytics' },
+        { name: 'Sales Report', icon: <Receipt size={20} weight="bold" />, path: '/admin/reports/sales' },
       ]
     },
     {
@@ -51,7 +52,7 @@ const AdminLayout = ({ children }) => {
         { name: 'Products', icon: <Package size={20} weight="bold" />, path: '/admin/products' },
         { name: 'Categories', icon: <Tag size={20} weight="bold" />, path: '/admin/categories' },
         { name: 'Orders', icon: <Receipt size={20} weight="bold" />, path: '/admin/orders' },
-        { name: 'Vouchers', icon: <Ticket size={20} weight="bold" />, path: '/admin/vouchers' },
+        { name: 'Discount Management', icon: <Ticket size={20} weight="bold" />, path: '/admin/vouchers' },
       ]
     }
   ];

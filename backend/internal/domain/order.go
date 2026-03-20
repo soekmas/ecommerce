@@ -43,6 +43,7 @@ type Order struct {
 	AppliedVoucher      *Voucher       `gorm:"foreignKey:AppliedVoucherID" json:"applied_voucher"`
 	PaymentURL          string         `json:"payment_url"`
 	XenditInvoiceID     string         `json:"xendit_invoice_id"`
+	BiteshipOrderID     string         `json:"biteship_order_id"`
 	PaymentStatus       string         `json:"payment_status"` // For internal tracking if needed
 	CreatedAt           time.Time      `json:"created_at"`
 	UpdatedAt           time.Time      `json:"updated_at"`
@@ -83,16 +84,27 @@ type OrderItemRequest struct {
 	Quantity  int  `json:"quantity" binding:"required,min=1"`
 }
 
+type OrderFilter struct {
+	StartDate *time.Time
+	EndDate   *time.Time
+	Status    OrderStatus
+	Search    string
+	Limit     int
+	Offset    int
+}
+
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order *Order) error
 	GetOrderByID(ctx context.Context, id uint) (*Order, error)
 	ListOrdersByUserID(ctx context.Context, userID uint) ([]*Order, error)
 	ListAllOrders(ctx context.Context) ([]*Order, error)
+	GetExpiredPendingOrders(ctx context.Context, expiryTime time.Time) ([]*Order, error)
 	UpdateOrderStatus(ctx context.Context, id uint, status OrderStatus) error
-	UpdateOrderAWB(ctx context.Context, id uint, awb string) error
+	UpdateOrderAWB(ctx context.Context, id uint, awb, biteshipOrderID string) error
 	UpdatePaymentInfo(ctx context.Context, id uint, xenditID, paymentURL string) error
 	GetByXenditInvoiceID(ctx context.Context, xenditID string) (*Order, error)
 	CountOrders(ctx context.Context) (int64, error)
+	ListSalesReport(ctx context.Context, filter *OrderFilter) ([]*Order, int64, error)
 }
 
 type OrderService interface {
@@ -104,4 +116,9 @@ type OrderService interface {
 	ProcessPayment(ctx context.Context, orderID uint) error
 	HandleXenditCallback(ctx context.Context, xenditID, status string) error
 	GenerateAWB(ctx context.Context, adminID, orderID uint) error // Interact with biteship
+	CancelOrder(ctx context.Context, adminID, orderID uint) error
+	MarkAsDelivered(ctx context.Context, adminID, orderID uint) error
+	GetShippingLabel(ctx context.Context, adminID, orderID uint) (string, error)
+	AutoCancelExpiredOrders(ctx context.Context) error
+	GetSalesReport(ctx context.Context, adminID uint, filter *OrderFilter) ([]*Order, int64, error)
 }

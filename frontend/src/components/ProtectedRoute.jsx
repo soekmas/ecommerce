@@ -17,7 +17,6 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     );
   }
 
-  /* 
   if (!user) {
     // Redirect to login but save the attempted location
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -27,7 +26,6 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     // If user is not admin and trying to access admin pages, redirect to home
     return <Navigate to="/" replace />;
   }
-  */
 
   return children;
 };

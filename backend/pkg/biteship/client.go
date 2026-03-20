@@ -14,6 +14,7 @@ import (
 type Client interface {
 	GetRates(req *RatesRequest) (*RatesResponse, error)
 	CreateOrder(req *OrderRequest) (*OrderResponse, error)
+	GetOrder(id string) (*OrderResponse, error)
 }
 
 type biteshipClient struct {
@@ -94,6 +95,7 @@ type OrderResponse struct {
 	Courier struct {
 		TrackingID string `json:"tracking_id"` // This is the AWB
 		WaybillID  string `json:"waybill_id"`
+		Link       string `json:"link"` // Label link
 	} `json:"courier"`
 }
 
@@ -132,4 +134,34 @@ func (c *biteshipClient) GetRates(req *RatesRequest) (*RatesResponse, error) {
 	}
 
 	return &ratesResp, nil
+}
+func (c *biteshipClient) GetOrder(id string) (*OrderResponse, error) {
+	httpReq, err := http.NewRequest("GET", c.baseURL+"/orders/"+id, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+c.cfg.BiteshipKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("biteship API error: status %d - %s", resp.StatusCode, string(body))
+	}
+
+	var orderResp OrderResponse
+	if err := json.Unmarshal(body, &orderResp); err != nil {
+		return nil, err
+	}
+
+	return &orderResp, nil
 }

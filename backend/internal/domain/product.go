@@ -108,6 +108,8 @@ type ProductFilter struct {
 	MaxPrice   int64  `json:"max_price"`
 	SortBy     string `json:"sort_by"`
 	Order      string `json:"order"` // asc | desc
+	Limit      int    `json:"limit"`
+	Offset     int    `json:"offset"`
 }
 
 // Interfaces
@@ -127,6 +129,7 @@ type ProductRepository interface {
 
 	// For Flash Sales and Checkout
 	DecrementStock(ctx context.Context, productID uint, quantity int) error
+	IncrementStock(ctx context.Context, productID uint, quantity int) error
 	CountProducts(ctx context.Context) (int64, error)
 }
 

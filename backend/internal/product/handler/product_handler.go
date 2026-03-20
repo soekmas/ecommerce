@@ -129,6 +129,25 @@ func (h *ProductHandler) ListProducts(c *gin.Context) {
 		}
 	}
 
+	limitStr := c.Query("limit")
+	if limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err == nil {
+			filter.Limit = limit
+		}
+	}
+
+	pageStr := c.Query("page")
+	if pageStr != "" {
+		page, err := strconv.Atoi(pageStr)
+		if err == nil && page > 0 {
+			if filter.Limit == 0 {
+				filter.Limit = 10 // Default limit if not specified
+			}
+			filter.Offset = (page - 1) * filter.Limit
+		}
+	}
+
 	products, err := h.productService.ListProducts(c.Request.Context(), filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errors.InternalServerError(err))
