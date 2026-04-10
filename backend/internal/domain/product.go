@@ -141,6 +141,7 @@ type ProductService interface {
 
 	CreateProduct(ctx context.Context, req *ProductRequest) error
 	GetProductByID(ctx context.Context, id uint) (*Product, error)
+	GetProductBySlug(ctx context.Context, slug string) (*Product, error)
 	ListProducts(ctx context.Context, filter ProductFilter) ([]*Product, error)
 	UpdateProduct(ctx context.Context, id uint, req *ProductRequest) error
 	DeleteProduct(ctx context.Context, id uint) error

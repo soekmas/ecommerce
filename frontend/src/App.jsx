@@ -25,6 +25,7 @@ import Contact from './pages/Contact';
 import FlashSales from './pages/FlashSales';
 import BlogList from './pages/BlogList';
 import BlogDetail from './pages/BlogDetail';
+import ContentPage from './pages/ContentPage';
 
 import AdminLayout from './components/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -74,6 +75,7 @@ function App() {
         <Route path="/flash-sales" element={<FullWidthLayout><FlashSales /></FullWidthLayout>} />
         <Route path="/contact" element={<FullWidthLayout><Contact /></FullWidthLayout>} />
         <Route path="/shop" element={<FullWidthLayout><Shop /></FullWidthLayout>} />
+        <Route path="/p/:slug" element={<FullWidthLayout><ContentPage /></FullWidthLayout>} />
 
         {/* Standard User Routes */}
         <Route path="*" element={
@@ -83,7 +85,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/verify" element={<VerifyEmail />} />
-              <Route path="/product/:id" element={<ProductDetail />} />
+              <Route path="/product/:slug" element={<ProductDetail />} />
               <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
               <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
               <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />

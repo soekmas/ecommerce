@@ -163,6 +163,7 @@ func main() {
 			catalog.GET("/categories", productHandler.GetCategories)
 			catalog.GET("/products", productHandler.ListProducts)
 			catalog.GET("/products/:id", productHandler.GetProductByID)
+			catalog.GET("/products/slug/:slug", productHandler.GetProductBySlug)
 			catalog.GET("/promos", promoHandler.GetActivePromos)
 			catalog.POST("/voucher/validate", promoHandler.ValidateVoucher)
 		}

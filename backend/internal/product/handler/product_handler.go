@@ -99,8 +99,13 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 }
 
 func (h *ProductHandler) ListProducts(c *gin.Context) {
+	search := c.Query("search")
+	if search == "" {
+		search = c.Query("q")
+	}
+
 	filter := domain.ProductFilter{
-		Search: c.Query("search"),
+		Search: search,
 		SortBy: c.Query("sort"),
 		Order:  c.Query("order"),
 	}
@@ -166,6 +171,34 @@ func (h *ProductHandler) GetProductByID(c *gin.Context) {
 	}
 
 	product, err := h.productService.GetProductByID(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, errors.NotFoundError("product not found", err))
+		return
+	}
+
+	// Fetch related products (same category, excluding current)
+	allRelated, _ := h.productService.ListProducts(c.Request.Context(), domain.ProductFilter{CategoryID: product.CategoryID})
+	related := make([]*domain.Product, 0)
+	for _, p := range allRelated {
+		if p.ID != product.ID && len(related) < 4 {
+			related = append(related, p)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":    product,
+		"related": related,
+	})
+}
+
+func (h *ProductHandler) GetProductBySlug(c *gin.Context) {
+	slug := c.Param("slug")
+	if slug == "" {
+		c.JSON(http.StatusBadRequest, errors.BadRequestError("slug is required", nil))
+		return
+	}
+
+	product, err := h.productService.GetProductBySlug(c.Request.Context(), slug)
 	if err != nil {
 		c.JSON(http.StatusNotFound, errors.NotFoundError("product not found", err))
 		return

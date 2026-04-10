@@ -93,6 +93,10 @@ func (s *productService) GetProductByID(ctx context.Context, id uint) (*domain.P
 	return s.productRepo.GetProductByID(ctx, id)
 }
 
+func (s *productService) GetProductBySlug(ctx context.Context, slug string) (*domain.Product, error) {
+	return s.productRepo.GetProductBySlug(ctx, slug)
+}
+
 func (s *productService) ListProducts(ctx context.Context, filter domain.ProductFilter) ([]*domain.Product, error) {
 	return s.productRepo.ListProducts(ctx, filter)
 }

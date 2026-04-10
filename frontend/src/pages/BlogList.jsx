@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api, { getFullUrl } from '../utils/api';
-import { BookOpen, MagnifyingGlass, CalendarBlank, ChatCircle, ArrowRight, House } from 'phosphor-react';
+import { BookOpen, MagnifyingGlass, CalendarBlank, ChatCircle, ArrowRight, House, Newspaper } from 'phosphor-react';
 
 const BlogList = () => {
   const [blogs, setBlogs] = useState([]);
@@ -45,15 +45,23 @@ const BlogList = () => {
   return (
     <div className="animate-fade-in pb-20">
       {/* Page Header */}
-      <div className="bg-white border-b border-gray-100 py-10 mb-10">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-black text-[#111827] tracking-tighter">Blog &amp; Stories</h1>
+      <div className="bg-white border-b border-gray-100 py-10 mb-10 overflow-hidden relative">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-orange-500 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-orange-500/20 animate-pulse">
+              <Newspaper size={32} weight="fill" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-[#111827] tracking-tighter">Blog &amp; Stories</h1>
+              <p className="text-orange-500 text-[10px] font-black uppercase tracking-[0.2em]">Latest Tech Insights</p>
+            </div>
+          </div>
           <div className="flex items-center gap-2 text-sm font-medium">
             <Link to="/" className="text-gray-400 hover:text-[#2B59FF] transition-colors flex items-center gap-1">
               <House size={16} /> Home
             </Link>
             <span className="text-gray-200">/</span>
-            <span className="text-gray-900">Articles</span>
+            <span className="text-gray-900 font-bold">Articles</span>
           </div>
         </div>
       </div>
@@ -86,7 +94,7 @@ const BlogList = () => {
                   className={`group animate-fade-in-up stagger-${(idx % 4) + 1}`}
                 >
                   {/* Cover Image */}
-                  <Link to={`/blogs/${blog.id}`} className="block overflow-hidden rounded-2xl mb-5 aspect-[16/9] bg-gray-100">
+                  <Link to={`/blogs/${blog.id}`} className="block overflow-hidden rounded-xl mb-5 aspect-[16/9] bg-gray-100">
                     {blog.image_url ? (
                       <img
                         src={getFullUrl(blog.image_url)}
@@ -99,9 +107,9 @@ const BlogList = () => {
                       </div>
                     )}
                   </Link>
-
+                  
                   {/* Category Badge */}
-                  <span className="inline-block px-3 py-1 bg-orange-50 text-orange-500 text-xs font-black uppercase tracking-wider rounded-full mb-3">
+                  <span className="inline-block px-3 py-1 bg-orange-50 text-orange-500 text-xs font-black uppercase tracking-wider rounded-lg mb-3">
                     Article
                   </span>
 
@@ -145,19 +153,19 @@ const BlogList = () => {
           <aside className="space-y-8">
 
             {/* Search Widget */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
               <h3 className="text-base font-black text-[#111827] mb-4">Search Here</h3>
-              <form onSubmit={handleSearch} className="flex gap-2">
+              <form onSubmit={handleSearch} className="relative flex items-center">
                 <input
                   type="text"
                   placeholder="Searching..."
                   value={searchInput}
                   onChange={e => setSearchInput(e.target.value)}
-                  className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:border-[#2B59FF] outline-none transition-all"
+                  className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:border-[#2B59FF] focus:bg-white outline-none transition-all"
                 />
                 <button
                   type="submit"
-                  className="px-4 py-2.5 bg-[#2B59FF] text-white rounded-xl hover:bg-blue-700 transition-colors"
+                  className="absolute right-1.5 w-9 h-9 bg-[#2B59FF] text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center shadow-lg shadow-blue-500/20"
                 >
                   <MagnifyingGlass size={18} weight="bold" />
                 </button>
@@ -182,7 +190,8 @@ const BlogList = () => {
                       <div className="w-16 h-16 bg-gray-100 rounded-xl flex-shrink-0" />
                       <div className="flex-1 space-y-2 pt-1">
                         <div className="h-3 bg-gray-100 rounded-full" />
-                        <div className="h-3 bg-gray-100 rounded-full w-2/3" />
+                        <div className="h-3 bg-gray-100 rounded-lg" />
+                        <div className="h-3 bg-gray-100 rounded-lg w-2/3" />
                       </div>
                     </div>
                   ))
@@ -195,7 +204,7 @@ const BlogList = () => {
                       to={`/blogs/${blog.id}`}
                       className="flex gap-3 group items-start"
                     >
-                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                         {blog.image_url ? (
                           <img
                             src={getFullUrl(blog.image_url)}

@@ -16,7 +16,7 @@ import {
 } from 'phosphor-react';
 
 const ProductDetail = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,7 @@ const ProductDetail = () => {
       setLoading(true);
       window.scrollTo(0, 0);
       try {
-        const res = await api.get(`/catalog/products/${id}`);
+        const res = await api.get(`/catalog/products/slug/${slug}`);
         setProduct(res.data.data);
         // Fallback or real related
         setRelated(res.data.related || []);
@@ -53,7 +53,7 @@ const ProductDetail = () => {
       }
     };
     fetchProduct();
-  }, [id]);
+  }, [slug]);
 
   const handleAddToCart = () => {
     if (product.stock === 0) return;
@@ -304,7 +304,7 @@ const ProductDetail = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-16">
             {related.slice(0, 4).map((item, idx) => (
               <Link 
-                to={`/product/${item.id}`} 
+                to={`/product/${item.slug}`} 
                 key={item.id} 
                 className={`group block animate-fade-in-up stagger-${(idx % 4) + 1}`}
               >

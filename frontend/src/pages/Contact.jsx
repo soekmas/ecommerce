@@ -27,17 +27,24 @@ const Contact = () => {
 
   return (
     <div className="animate-fade-in pb-0">
-      {/* Page Header */}
-      <div className="bg-white border-b border-gray-100 py-10 mb-10">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-black text-[#111827] tracking-tighter">Contact Us</h1>
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Link to="/" className="text-gray-400 hover:text-[#2B59FF] transition-colors flex items-center gap-1">
-              <House size={16} /> Home
-            </Link>
-            <span className="text-gray-200">/</span>
-            <span className="text-gray-900">Support Center</span>
-          </div>
+      <div className="bg-white border-b border-gray-100 py-10 mb-10 overflow-hidden relative">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+           <div className="flex items-center gap-5">
+              <div className="w-14 h-14 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-500/20 animate-bounce">
+                <Headset size={32} weight="fill" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black text-[#111827] tracking-tighter">Contact Us</h1>
+                <p className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.2em]">24/7 Support Center</p>
+              </div>
+           </div>
+           <div className="flex items-center gap-2 text-sm font-medium">
+              <Link to="/" className="text-gray-400 hover:text-[#2B59FF] transition-colors flex items-center gap-1">
+                <House size={16} /> Home
+              </Link>
+              <span className="text-gray-200">/</span>
+              <span className="text-gray-900 font-bold">Support Center</span>
+           </div>
         </div>
       </div>
 

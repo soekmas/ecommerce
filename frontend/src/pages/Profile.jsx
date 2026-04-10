@@ -241,8 +241,8 @@ const Profile = () => {
     );
 
     return (
-        <div className="max-w-4xl mx-auto space-y-12 animate-fade-in pb-20">
-            <header className="flex flex-col md:flex-row items-center gap-8 p-10 bg-white rounded-[3rem] border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="max-w-[1400px] mx-auto space-y-12 animate-fade-in pb-20">
+            <header className="flex flex-col md:flex-row items-center gap-8 p-10 bg-white rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -mr-32 -mt-32 opacity-50"></div>
                 
                 <div className="relative z-10">
@@ -266,7 +266,7 @@ const Profile = () => {
                 </div>
             </header>
 
-            <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-[350px_1fr] gap-10">
                 <aside className="space-y-6">
                     <div className="space-y-2">
                         <h3 className="text-xl font-black text-gray-900 tracking-tight">Personal Details</h3>
@@ -274,18 +274,19 @@ const Profile = () => {
                             Update your name and primary contact information.
                         </p>
                     </div>
-                    <div className="p-6 bg-blue-600 rounded-3xl text-white shadow-xl shadow-blue-600/20 space-y-4">
-                        <IdentificationCard size={32} />
-                        <p className="text-xs font-bold opacity-80 leading-relaxed">
+                    <div className="p-8 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-600/20 space-y-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16 transition-all duration-500 group-hover:bg-white/20" />
+                        <IdentificationCard size={40} weight="fill" className="relative z-10" />
+                        <p className="text-sm font-bold opacity-90 leading-relaxed relative z-10">
                             Your identity helps us personalize your shopping experience and manage your rewards.
                         </p>
                     </div>
                 </aside>
 
-                <div className="md:col-span-2 space-y-8 bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm">
+                <div className="space-y-8 bg-white p-6 md:p-12 rounded-2xl border border-gray-100 shadow-sm">
                     {message.text && (
-                        <div className={`p-4 rounded-2xl text-sm font-bold flex items-center gap-3 animate-fade-in ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                            {message.type === 'success' ? <ShieldCheck size={20} /> : <Phone size={20} />}
+                        <div className={`p-4 rounded-xl text-sm font-bold flex items-center gap-3 animate-fade-in ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                            {message.type === 'success' ? <ShieldCheck size={20} weight="fill" /> : <Phone size={20} weight="fill" />}
                             {message.text}
                         </div>
                     )}
@@ -295,7 +296,7 @@ const Profile = () => {
                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Full Name</label>
                             <input 
                                 type="text"
-                                className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-all"
+                                className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none transition-all"
                                 value={profile.name}
                                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                                 required
@@ -306,7 +307,7 @@ const Profile = () => {
                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Phone Number</label>
                             <input 
                                 type="tel"
-                                className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-all"
+                                className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none transition-all"
                                 value={profile.phone}
                                 onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                                 placeholder="+62..."
@@ -325,7 +326,7 @@ const Profile = () => {
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Province</label>
                                     <input 
                                         type="text"
-                                        className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none"
+                                        className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none"
                                         value={profile.province}
                                         onChange={(e) => setProfile({ ...profile, province: e.target.value })}
                                         required
@@ -335,7 +336,7 @@ const Profile = () => {
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">City</label>
                                     <input 
                                         type="text"
-                                        className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none"
+                                        className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none"
                                         value={profile.city}
                                         onChange={(e) => setProfile({ ...profile, city: e.target.value })}
                                         required
@@ -345,7 +346,7 @@ const Profile = () => {
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">District (Kecamatan)</label>
                                     <input 
                                         type="text"
-                                        className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none"
+                                        className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none"
                                         value={profile.district}
                                         onChange={(e) => setProfile({ ...profile, district: e.target.value })}
                                         required
@@ -355,7 +356,7 @@ const Profile = () => {
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Postal Code</label>
                                     <input 
                                         type="text"
-                                        className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none"
+                                        className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none"
                                         value={profile.postal_code}
                                         onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })}
                                         required
@@ -366,7 +367,7 @@ const Profile = () => {
                             <div className="space-y-2 pt-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-4">Full Address Details</label>
                                 <textarea 
-                                    className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none resize-none min-h-[100px]"
+                                    className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none resize-none min-h-[100px] transition-all"
                                     placeholder="Jl. Merdeka No. 123..."
                                     value={profile.full_address}
                                     onChange={(e) => setProfile({ ...profile, full_address: e.target.value })}
@@ -393,7 +394,7 @@ const Profile = () => {
                                     </div>
                                     <input 
                                         type="text"
-                                        className="w-full bg-gray-50 border-none pl-12 pr-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none transition-all"
+                                        className="w-full bg-gray-50 border border-gray-100 pl-12 pr-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none transition-all"
                                         placeholder="Search area, street, or building name..."
                                         value={searchQuery}
                                         onChange={handleSearchLocation}
@@ -418,7 +419,7 @@ const Profile = () => {
 
                                 <div 
                                     ref={mapRef} 
-                                    className="w-full h-64 rounded-3xl overflow-hidden border-4 border-gray-50 shadow-inner z-0"
+                                    className="w-full h-64 rounded-2xl overflow-hidden border-4 border-gray-50 shadow-inner z-0"
                                     style={{ background: '#f8fafc' }}
                                 ></div>
                                 <p className="text-[10px] text-gray-400 font-medium ml-4 italic">* Click on the map or drag the marker to set your precise location.</p>
@@ -430,7 +431,7 @@ const Profile = () => {
                                     <input 
                                         type="number"
                                         step="any"
-                                        className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none"
+                                        className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none"
                                         value={profile.latitude}
                                         onChange={(e) => setProfile({ ...profile, latitude: e.target.value })}
                                     />
@@ -440,7 +441,7 @@ const Profile = () => {
                                     <input 
                                         type="number"
                                         step="any"
-                                        className="w-full bg-gray-50 border-none px-6 py-4 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-blue-600 outline-none"
+                                        className="w-full bg-gray-50 border border-gray-100 px-6 py-4 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-600 outline-none"
                                         value={profile.longitude}
                                         onChange={(e) => setProfile({ ...profile, longitude: e.target.value })}
                                     />
@@ -452,10 +453,10 @@ const Profile = () => {
                             <Button 
                                 type="submit" 
                                 variant="primary" 
-                                className="px-12 py-5 rounded-2xl shadow-xl shadow-blue-600/10"
+                                className="px-12 py-5 rounded-xl shadow-xl shadow-blue-600/10 font-black text-sm uppercase tracking-widest"
                                 disabled={saving}
                             >
-                                {saving ? 'Synchronizing...' : 'Update Profile Settings'}
+                                {saving ? 'Synchronizing...' : 'Save Profile Changes'}
                             </Button>
                         </div>
                     </div>

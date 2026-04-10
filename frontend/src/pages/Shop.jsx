@@ -12,6 +12,7 @@ import {
 const Shop = () => {
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category_id');
+  const initialSearch = searchParams.get('search') || searchParams.get('q') || '';
   
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -19,6 +20,8 @@ const Shop = () => {
   const [activeCategory, setActiveCategory] = useState(initialCategory || null);
   const [sortBy, setSortBy] = useState('newest');
   const [priceRange, setPriceRange] = useState(10000000); // 10jt default max
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const { addToCart } = useCart();
 
   useEffect(() => {
@@ -27,7 +30,7 @@ const Shop = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [activeCategory, sortBy, priceRange]);
+  }, [activeCategory, sortBy, priceRange, searchQuery]);
 
   const fetchCategories = async () => {
     try {
@@ -51,6 +54,10 @@ const Shop = () => {
 
       if (priceRange) {
         params.append('max_price', priceRange.toString());
+      }
+
+      if (searchQuery) {
+        params.append('search', searchQuery);
       }
 
       // Map friendly sort values to DB columns
@@ -78,18 +85,30 @@ const Shop = () => {
     }
   };
 
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
+    setSearchQuery(searchInput);
+  };
+
   return (
     <div className="animate-fade-in bg-white min-h-screen pb-20">
-      {/* ── TOP BREADCRUMB HEADER ── */}
-      <div className="bg-white border-b border-gray-100 py-10 mb-10">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-           <h1 className="text-3xl font-black text-[#111827]">Shop Catalog</h1>
+      <div className="bg-white border-b border-gray-100 py-10 mb-10 overflow-hidden relative">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+           <div className="flex items-center gap-5">
+              <div className="w-14 h-14 bg-[#2B59FF] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20 animate-pulse">
+                <ShoppingCart size={32} weight="fill" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-black text-[#111827] tracking-tighter">Shop Catalog</h1>
+                <p className="text-[#2B59FF] text-[10px] font-black uppercase tracking-[0.2em]">Discover Premium Tech</p>
+              </div>
+           </div>
            <div className="flex items-center gap-2 text-sm font-medium">
               <Link to="/" className="text-gray-400 hover:text-[#2B59FF] transition-colors flex items-center gap-1">
                 <House size={16} /> Home
               </Link>
               <span className="text-gray-200">/</span>
-              <span className="text-gray-900">Product Shop</span>
+              <span className="text-gray-900 font-bold">Product Shop</span>
            </div>
         </div>
       </div>
@@ -99,7 +118,7 @@ const Shop = () => {
           
           {/* ── LEFT SIDEBAR: CATEGORIES ── */}
           <aside className="space-y-8">
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
               <h2 className="text-xl font-black text-[#111827] mb-8 pb-4 border-b border-gray-50">Product Category</h2>
               <div className="space-y-4">
                 <button 
@@ -121,8 +140,28 @@ const Shop = () => {
               </div>
             </div>
 
+            {/* Search Widget */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <h3 className="text-base font-black text-[#111827] mb-4">Search Here</h3>
+              <form onSubmit={handleSearch} className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="Searching..."
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:border-[#2B59FF] focus:bg-white outline-none transition-all"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-1.5 w-9 h-9 bg-[#2B59FF] text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center shadow-lg shadow-blue-500/20"
+                >
+                  <MagnifyingGlass size={18} weight="bold" />
+                </button>
+              </form>
+            </div>
+
             {/* Price Filter */}
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-xl p-8 shadow-sm">
                <h2 className="text-xl font-black text-[#111827] mb-6">Price Range</h2>
                <div className="space-y-4">
                   <input 
@@ -150,7 +189,7 @@ const Shop = () => {
                   Showing 1-{products.length} of {products.length} result
                </p>
                <div className="flex items-center gap-4">
-                  <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
+                  <div className="flex items-center bg-gray-50 p-1 rounded-lg border border-gray-100">
                      <button className="p-2 text-gray-400 hover:text-[#111827] transition-colors"><List size={20} weight="bold" /></button>
                      <button className="p-2 bg-white text-orange-500 shadow-sm rounded-lg border border-gray-100"><SquaresFour size={20} weight="fill" /></button>
                   </div>
@@ -174,11 +213,11 @@ const Shop = () => {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="animate-pulse bg-gray-50 rounded-3xl h-[400px]" />
+                  <div key={i} className="animate-pulse bg-gray-50 rounded-2xl h-[400px]" />
                 ))}
               </div>
             ) : products.length === 0 ? (
-              <div className="text-center py-32 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-100">
+              <div className="text-center py-32 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
                  <SquaresFour size={64} className="mx-auto text-gray-200 mb-4" />
                  <p className="text-gray-400 font-bold">No products found for this category.</p>
               </div>
@@ -187,10 +226,10 @@ const Shop = () => {
                 {products.map(product => (
                   <div 
                     key={product.id}
-                    className="group bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm hover:border-orange-200 hover:shadow-xl hover:shadow-orange-500/5 transition-all duration-500 flex flex-col"
+                    className="group bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:border-orange-200 hover:shadow-xl hover:shadow-orange-500/5 transition-all duration-500 flex flex-col"
                   >
                     {/* Image Container */}
-                    <Link to={`/product/${product.id}`} className="relative bg-[#F3F4F6] rounded-[1.5rem] aspect-square overflow-hidden mb-6 flex items-center justify-center p-8">
+                    <Link to={`/product/${product.slug}`} className="relative bg-[#F3F4F6] rounded-lg aspect-square overflow-hidden mb-6 flex items-center justify-center p-8">
                        {product.image_urls && product.image_urls.length > 0 ? (
                          <img 
                             src={getFullUrl(product.image_urls[0])} 
@@ -202,7 +241,7 @@ const Shop = () => {
                        )}
                        {/* Discount Badge */}
                        {product.special_price && (
-                         <span className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter px-3 py-1.5 rounded-full shadow-lg">
+                         <span className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter px-3 py-1.5 rounded-lg shadow-lg">
                             Sale
                          </span>
                        )}
@@ -210,7 +249,7 @@ const Shop = () => {
 
                     {/* Info */}
                     <div className="flex-1 px-2 space-y-3">
-                       <Link to={`/product/${product.id}`} className="block">
+                       <Link to={`/product/${product.slug}`} className="block">
                           <h3 className="font-black text-[#111827] group-hover:text-[#2B59FF] transition-colors line-clamp-2 leading-tight">
                              {product.name}
                           </h3>
@@ -251,7 +290,7 @@ const Shop = () => {
                     <div className="pt-6 px-2">
                        <button 
                           onClick={() => addToCart(product)}
-                          className="w-full bg-gray-50 group-hover:bg-[#2B59FF] text-[#111827] group-hover:text-white py-3.5 rounded-2xl font-black text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
+                          className="w-full bg-gray-50 group-hover:bg-[#2B59FF] text-[#111827] group-hover:text-white py-3.5 rounded-xl font-black text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
                        >
                           Add To Cart <ShoppingCart size={18} weight="bold" />
                        </button>

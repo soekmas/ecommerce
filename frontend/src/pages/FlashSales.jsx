@@ -81,14 +81,14 @@ const FlashSales = () => {
           
           {/* ── LEFT SIDEBAR ── */}
           <aside className="space-y-8">
-            <div className="bg-white border border-gray-100 rounded-3xl p-8 shadow-sm">
+            <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
               <h2 className="text-xl font-black text-[#111827] mb-8 pb-4 border-b border-gray-50 flex items-center gap-2">
                 <Fire size={24} weight="fill" className="text-orange-500" /> Hot Categories
               </h2>
               <div className="space-y-4">
                 <button 
                   onClick={() => setActiveCategory(null)}
-                  className={`flex justify-between items-center w-full text-left font-bold transition-all ${!activeCategory ? 'text-red-500' : 'text-gray-500 hover:text-[#111827]'}`}
+                  className={`flex justify-between items-center w-full text-left font-bold transition-all ${!activeCategory ? 'text-[#2B59FF]' : 'text-gray-500 hover:text-[#111827]'}`}
                 >
                   <span>All Sales</span>
                   <span className="text-xs opacity-50">({products.length})</span>
@@ -97,7 +97,7 @@ const FlashSales = () => {
                   <button 
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex justify-between items-center w-full text-left font-bold transition-all ${activeCategory === cat.id ? 'text-red-500' : 'text-gray-500 hover:text-[#111827]'}`}
+                    className={`flex justify-between items-center w-full text-left font-bold transition-all ${activeCategory === cat.id ? 'text-[#2B59FF]' : 'text-gray-500 hover:text-[#111827]'}`}
                   >
                     <span>{cat.name}</span>
                   </button>
@@ -106,18 +106,18 @@ const FlashSales = () => {
             </div>
 
             {/* Promo Card */}
-            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-8 text-white relative overflow-hidden group">
+            <div className="bg-gradient-to-br from-[#111827] to-[#1e293b] rounded-2xl p-8 text-white relative overflow-hidden group">
                <div className="relative z-10 space-y-4">
                   <h3 className="text-2xl font-black leading-tight">Don't Miss<br/>The Deal!</h3>
-                  <p className="text-red-100 text-xs font-bold leading-relaxed">Exclusive discounts for loyal customers.</p>
+                  <p className="text-gray-400 text-xs font-bold leading-relaxed">Exclusive discounts for loyal customers.</p>
                   <div className="pt-2">
                     <div className="flex gap-2">
-                       <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black">24H</span>
-                       <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black">LEFT</span>
+                       <span className="bg-white/10 px-2 py-1 rounded-lg text-xs font-black">24H</span>
+                       <span className="bg-white/10 px-2 py-1 rounded-lg text-xs font-black">LEFT</span>
                     </div>
                   </div>
                </div>
-               <Lightning size={80} weight="fill" className="absolute -bottom-4 -right-4 text-white/10 group-hover:scale-125 transition-transform duration-700" />
+               <Lightning size={80} weight="fill" className="absolute -bottom-4 -right-4 text-white/5 group-hover:scale-125 transition-transform duration-700" />
             </div>
           </aside>
 
@@ -155,10 +155,10 @@ const FlashSales = () => {
                   return (
                     <div 
                       key={product.id}
-                      className="group bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm hover:border-red-200 hover:shadow-xl hover:shadow-red-500/5 transition-all duration-500 flex flex-col"
+                      className="group bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-500 flex flex-col"
                     >
                       {/* Image Container */}
-                      <Link to={`/product/${product.id}`} className="relative bg-white border border-gray-50 rounded-[1.5rem] aspect-square overflow-hidden mb-6 flex items-center justify-center p-8">
+                      <Link to={`/product/${product.slug}`} className="relative bg-white border border-gray-50 rounded-lg aspect-square overflow-hidden mb-6 flex items-center justify-center p-8">
                          {product.image_urls && product.image_urls.length > 0 ? (
                             <img 
                               src={getFullUrl(product.image_urls[0])} 
@@ -170,7 +170,7 @@ const FlashSales = () => {
                          )}
                          {/* Discount Badge */}
                          <div className="absolute top-4 left-4 flex flex-col gap-1">
-                            <span className="bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter px-3 py-1.5 rounded-full shadow-lg">
+                            <span className="bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter px-3 py-1.5 rounded-lg shadow-lg">
                                SAVE {discount}%
                             </span>
                          </div>
@@ -178,8 +178,8 @@ const FlashSales = () => {
 
                       {/* Info */}
                       <div className="flex-1 px-2 space-y-3">
-                         <Link to={`/product/${product.id}`} className="block">
-                            <h3 className="font-black text-[#111827] group-hover:text-red-500 transition-colors line-clamp-2 leading-tight">
+                         <Link to={`/product/${product.slug}`} className="block">
+                            <h3 className="font-black text-[#111827] group-hover:text-[#2B59FF] transition-colors line-clamp-2 leading-tight">
                                {product.name}
                             </h3>
                          </Link>
@@ -210,7 +210,7 @@ const FlashSales = () => {
                       <div className="pt-6 px-2">
                          <button 
                             onClick={() => addToCart(product)}
-                            className="w-full bg-[#111827] hover:bg-red-500 text-white py-3.5 rounded-2xl font-black text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
+                            className="w-full bg-gray-50 hover:bg-[#2B59FF] hover:text-white text-[#111827] py-3.5 rounded-xl font-black text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-sm"
                          >
                             Add To Cart <ShoppingCart size={18} weight="bold" />
                          </button>
