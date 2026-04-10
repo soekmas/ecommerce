@@ -21,12 +21,12 @@ func NewSMTPMailer(cfg *config.Config) Mailer {
 }
 
 func (m *smtpMailer) SendVerificationEmail(toEmail, name, token string) error {
-	smtpHost := "localhost"
-	smtpPort := "1025"
+	smtpHost := m.cfg.SMTPHost
+	smtpPort := m.cfg.SMTPPort
 	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
 
 	subject := "Verify your Go-Commerce account"
-	verifyURL := fmt.Sprintf("http://localhost:5173/verify?token=%s", token)
+	verifyURL := fmt.Sprintf("%s/verify?token=%s", m.cfg.FrontendURL, token)
 
 	body := fmt.Sprintf(`
 	<!DOCTYPE html>
@@ -59,19 +59,20 @@ func (m *smtpMailer) SendVerificationEmail(toEmail, name, token string) error {
 	</body>
 	</html>`, name, verifyURL, verifyURL)
 
-	msg := fmt.Sprintf("From: Go-Commerce <noreply@go-commerce.local>\r\n"+
+	msg := fmt.Sprintf("From: Go-Commerce <%s>\r\n"+
 		"To: %s\r\n"+
 		"Subject: %s\r\n"+
 		"MIME-Version: 1.0\r\n"+
 		"Content-Type: text/html; charset=\"UTF-8\"\r\n\r\n"+
-		"%s", toEmail, subject, body)
+		"%s", m.cfg.SMTPFrom, toEmail, subject, body)
 
-	return smtp.SendMail(addr, nil, "noreply@go-commerce.local", []string{toEmail}, []byte(msg))
+	auth := smtp.PlainAuth("", m.cfg.SMTPUser, m.cfg.SMTPPass, smtpHost)
+	return smtp.SendMail(addr, auth, m.cfg.SMTPFrom, []string{toEmail}, []byte(msg))
 }
 
 func (m *smtpMailer) SendOrderStatusEmail(toEmail, name, orderNumber, status string) error {
-	smtpHost := "localhost"
-	smtpPort := "1025"
+	smtpHost := m.cfg.SMTPHost
+	smtpPort := m.cfg.SMTPPort
 	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
 
 	subject := fmt.Sprintf("Order Update: %s - %s", orderNumber, status)
@@ -100,21 +101,22 @@ func (m *smtpMailer) SendOrderStatusEmail(toEmail, name, orderNumber, status str
 				<h2 style="color: #111827; font-weight: 800;">Order Update</h2>
 				<p>Hello %s, your order <strong>%s</strong> has been updated.</p>
 				<p>Order Status: <span style="color: #111827; font-weight: 700;">%s</span></p>
-				<a href="http://localhost:5173/orders" class="button">Track Order Detail</a>
+				<a href="%s/orders" class="button">Track Order Detail</a>
 			</div>
 			<div class="footer">
 				&copy; 2026 Go-Commerce. Questions? contact support@go-commerce.local
 			</div>
 		</div>
 	</body>
-	</html>`, status, name, orderNumber, status)
+	</html>`, status, name, orderNumber, status, m.cfg.FrontendURL)
 
-	msg := fmt.Sprintf("From: Go-Commerce <noreply@go-commerce.local>\r\n"+
+	msg := fmt.Sprintf("From: Go-Commerce <%s>\r\n"+
 		"To: %s\r\n"+
 		"Subject: %s\r\n"+
 		"MIME-Version: 1.0\r\n"+
 		"Content-Type: text/html; charset=\"UTF-8\"\r\n\r\n"+
-		"%s", toEmail, subject, body)
+		"%s", m.cfg.SMTPFrom, toEmail, subject, body)
 
-	return smtp.SendMail(addr, nil, "noreply@go-commerce.local", []string{toEmail}, []byte(msg))
+	auth := smtp.PlainAuth("", m.cfg.SMTPUser, m.cfg.SMTPPass, smtpHost)
+	return smtp.SendMail(addr, auth, m.cfg.SMTPFrom, []string{toEmail}, []byte(msg))
 }

@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FacebookLogo, TwitterLogo, InstagramLogo, YoutubeLogo, PaperPlaneTilt, AppStoreLogo, GooglePlayLogo } from 'phosphor-react';
+import { FacebookLogo, TwitterLogo, InstagramLogo, YoutubeLogo, PaperPlaneTilt, AppStoreLogo, GooglePlayLogo, LinkedinLogo } from 'phosphor-react';
+import { useSettings } from '../context/SettingsContext';
 
 const Footer = () => {
+  const { settings } = useSettings();
+
   return (
     <footer className="bg-white pt-16">
       {/* Newsletter Section */}
@@ -34,14 +37,12 @@ const Footer = () => {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 border-b border-gray-100">
         <div className="space-y-6">
           <h3 className="text-lg font-bold text-[#111827]">Support</h3>
-          <p className="text-gray-500 text-sm leading-relaxed">
-            685 Market Street <br />
-            San Francisco, CA 94105, <br />
-            United States
+          <p className="text-gray-500 text-sm leading-relaxed whitespace-pre-line">
+            {settings.address}
           </p>
           <div className="space-y-2">
-            <p className="text-sm font-bold text-[#111827]">support@gocommerce.com</p>
-            <p className="text-sm font-bold text-[#111827]">(+01) 850-315-5862</p>
+            <p className="text-sm font-bold text-[#111827]">{settings.email}</p>
+            <p className="text-sm font-bold text-[#111827]">{settings.phone}</p>
           </div>
         </div>
 
@@ -91,17 +92,27 @@ const Footer = () => {
 
       {/* Bottom Bar */}
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-6">
-        <p className="text-sm text-gray-400 font-medium">© 2024 Go-Commerce. All Rights Reserved.</p>
+        <p className="text-sm text-gray-400 font-medium">© {new Date().getFullYear()} {settings.company_name}. All Rights Reserved.</p>
         
         <div className="flex items-center gap-6">
-          <FacebookLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
-          <TwitterLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
-          <InstagramLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
-          <YoutubeLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
+          <a href={settings.facebook_url} target="_blank" rel="noreferrer">
+            <FacebookLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
+          </a>
+          <a href={settings.twitter_url} target="_blank" rel="noreferrer">
+             <TwitterLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
+          </a>
+          <a href={settings.instagram_url} target="_blank" rel="noreferrer">
+             <InstagramLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
+          </a>
+          <a href={settings.linkedin_url} target="_blank" rel="noreferrer">
+             <LinkedinLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
+          </a>
+          <a href={settings.youtube_url} target="_blank" rel="noreferrer">
+             <YoutubeLogo size={20} className="text-gray-400 hover:text-[#2B59FF] cursor-pointer transition-colors" />
+          </a>
         </div>
 
         <div className="flex items-center gap-4 grayscale opacity-50">
-           {/* Mock payment icons */}
            <div className="w-10 h-6 bg-gray-200 rounded" />
            <div className="w-10 h-6 bg-gray-200 rounded" />
            <div className="w-10 h-6 bg-gray-200 rounded" />
@@ -112,3 +123,4 @@ const Footer = () => {
 };
 
 export default Footer;
+

@@ -18,16 +18,20 @@ import {
   Shield,
   House,
   CaretDoubleLeft,
-  CaretDoubleRight
+  CaretDoubleRight,
+  Notebook,
+  Gear
 } from 'phosphor-react';
 
 import { AuthContext } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 
 const AdminLayout = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState({ 'E-Commerce': true, 'Showcase': true });
   const { user, logout: authLogout } = useContext(AuthContext);
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -44,6 +48,7 @@ const AdminLayout = ({ children }) => {
       title: 'Management',
       items: [
         { name: 'User Management', icon: <Users size={20} weight="bold" />, path: '/admin/users' },
+        { name: 'General Settings', icon: <Gear size={20} weight="bold" />, path: '/admin/settings' },
       ]
     },
     {
@@ -52,7 +57,12 @@ const AdminLayout = ({ children }) => {
         { name: 'Products', icon: <Package size={20} weight="bold" />, path: '/admin/products' },
         { name: 'Categories', icon: <Tag size={20} weight="bold" />, path: '/admin/categories' },
         { name: 'Orders', icon: <Receipt size={20} weight="bold" />, path: '/admin/orders' },
-        { name: 'Discount Management', icon: <Ticket size={20} weight="bold" />, path: '/admin/vouchers' },
+      ]
+    },
+    {
+      title: 'Content',
+      items: [
+        { name: 'Blogs & Articles', icon: <Notebook size={20} weight="bold" />, path: '/admin/blogs' },
       ]
     }
   ];
@@ -91,7 +101,7 @@ const AdminLayout = ({ children }) => {
               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 transition-transform hover:scale-105 active:scale-95 duration-300">
                 <Storefront size={22} weight="fill" className="text-white" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-gray-900 whitespace-nowrap">Go-Commerce</span>
+              <span className="text-xl font-bold tracking-tight text-gray-900 whitespace-nowrap">{settings.company_name}</span>
             </Link>
             
             {/* Desktop Collapse Toggle */}
@@ -233,7 +243,7 @@ const AdminLayout = ({ children }) => {
 
         {/* Page Body */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#f8fafc] p-8 lg:p-12">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-[1440px] mx-auto">
             {children}
           </div>
         </main>

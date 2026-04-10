@@ -19,6 +19,16 @@ const (
 	OrderStatusCancelled      OrderStatus = "cancelled"
 )
 
+type CheckoutPreviewResponse struct {
+	Subtotal         int64      `json:"subtotal"`
+	PromoDiscount    int64      `json:"promo_discount"`
+	AppliedPromoRule *PromoRule `json:"applied_promo_rule,omitempty"`
+	VoucherDiscount  int64      `json:"voucher_discount"`
+	AppliedVoucher   *Voucher   `json:"applied_voucher,omitempty"`
+	ShippingCost     int64      `json:"shipping_cost"`
+	FinalAmount      int64      `json:"final_amount"`
+}
+
 type Order struct {
 	ID                  uint           `gorm:"primaryKey" json:"id"`
 	UserID              uint           `gorm:"index;not null" json:"user_id"`
@@ -109,6 +119,7 @@ type OrderRepository interface {
 
 type OrderService interface {
 	CreateCheckout(ctx context.Context, userID uint, req *OrderRequest) (*Order, error)
+	PreviewCheckout(ctx context.Context, userID uint, req *OrderRequest) (*CheckoutPreviewResponse, error)
 	GetShippingRates(ctx context.Context, req *ShippingRateRequest) ([]biteship.CourierRate, error)
 	GetOrder(ctx context.Context, userID uint, role UserRole, orderID uint) (*Order, error)
 	ListMyOrders(ctx context.Context, userID uint) ([]*Order, error)

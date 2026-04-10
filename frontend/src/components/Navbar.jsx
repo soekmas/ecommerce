@@ -1,12 +1,14 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Storefront, UserCircle, Bell, Checks, MagnifyingGlass, List, CaretDown, Heart } from 'phosphor-react';
+import { ShoppingCart, Storefront, UserCircle, Bell, Checks, MagnifyingGlass, List, CaretDown, Heart, Lightning } from 'phosphor-react';
 import { AuthContext } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useSettings } from '../context/SettingsContext';
 import api from '../utils/api';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
+  const { settings } = useSettings();
   const { cartCount } = useCart();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -77,7 +79,7 @@ const Navbar = () => {
               <div className="text-[#2B59FF] transition-transform group-hover:scale-105">
                 <Storefront size={28} weight="fill" />
               </div>
-              <span className="text-2xl font-bold text-[#111827] tracking-tight">Go-Commerce</span>
+              <span className="text-2xl font-bold text-[#111827] tracking-tight">{settings.company_name}</span>
             </Link>
 
             {/* All Categories Dropdown */}
@@ -203,17 +205,18 @@ const Navbar = () => {
             <div className="flex items-center gap-8 overflow-x-auto no-scrollbar">
               <Link to="/" className="text-sm font-semibold text-[#111827] hover:text-[#2B59FF] transition-colors whitespace-nowrap">Home</Link>
               <Link to="/shop" className="text-sm font-semibold text-[#111827] hover:text-[#2B59FF] transition-colors whitespace-nowrap">Shop</Link>
+              <Link to="/flash-sales" className="text-sm font-black text-red-500 hover:text-red-700 transition-colors whitespace-nowrap flex items-center gap-1">
+                <Lightning size={16} weight="fill" /> Flash Sales
+              </Link>
               <Link to="/contact" className="text-sm font-semibold text-[#111827] hover:text-[#2B59FF] transition-colors whitespace-nowrap">Contact</Link>
               <div className="relative group/pages">
                 <button className="flex items-center gap-1 text-sm font-semibold text-[#111827] hover:text-[#2B59FF] transition-colors whitespace-nowrap">
                   Pages <CaretDown size={14} weight="bold" />
                 </button>
               </div>
-              <div className="relative group/blogs">
-                <button className="flex items-center gap-1 text-sm font-semibold text-[#111827] hover:text-[#2B59FF] transition-colors whitespace-nowrap">
-                  Blogs <CaretDown size={14} weight="bold" />
-                </button>
-              </div>
+              <Link to="/blogs" className="text-sm font-semibold text-[#111827] hover:text-[#2B59FF] transition-colors whitespace-nowrap">
+                Blogs
+              </Link>
             </div>
 
             <div className="hidden lg:flex items-center gap-2">

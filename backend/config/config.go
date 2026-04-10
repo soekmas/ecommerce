@@ -24,6 +24,13 @@ type Config struct {
 	BiteshipKey string
 	XenditSecretKey string
 	XenditWebhookToken string
+	SMTPHost   string
+	SMTPPort   string
+	SMTPFrom   string
+	SMTPUser   string
+	SMTPPass   string
+	FrontendURL string
+	AllowedOrigin string
 }
 
 func LoadConfig() *Config {
@@ -50,6 +57,13 @@ func LoadConfig() *Config {
 		BiteshipKey: getEnv("BITESHIP_API_KEY", ""),
 		XenditSecretKey: getEnv("XENDIT_SECRET_KEY", ""),
 		XenditWebhookToken: getEnv("XENDIT_WEBHOOK_TOKEN", ""),
+		SMTPHost:   getEnv("SMTP_HOST", "localhost"),
+		SMTPPort:   getEnv("SMTP_PORT", "1025"),
+		SMTPFrom:   getEnv("SMTP_FROM", "noreply@go-commerce.local"),
+		SMTPUser:   getEnv("SMTP_USER", ""),
+		SMTPPass:   getEnv("SMTP_PASSWORD", ""),
+		FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+		AllowedOrigin: getEnv("ALLOWED_ORIGIN", "http://localhost:5173"),
 	}
 }
 

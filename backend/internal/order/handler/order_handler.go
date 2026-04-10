@@ -38,6 +38,25 @@ func (h *OrderHandler) Checkout(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "checkout successful", "data": order})
 }
 
+func (h *OrderHandler) PreviewCheckout(c *gin.Context) {
+	payloadRaw, _ := c.Get("authorization_payload")
+	claims := payloadRaw.(*jwt.JWTClaim)
+
+	var req domain.OrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, errors.BadRequestError("invalid request", err))
+		return
+	}
+
+	preview, err := h.orderService.PreviewCheckout(c.Request.Context(), claims.UserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errors.InternalServerError(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "preview successful", "data": preview})
+}
+
 func (h *OrderHandler) GetShippingRates(c *gin.Context) {
 	var req domain.ShippingRateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

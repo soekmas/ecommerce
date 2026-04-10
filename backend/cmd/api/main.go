@@ -27,6 +27,12 @@ import (
 	userRepo "github.com/vibecoding/ecommerce/internal/user/repository"
 	userSvc "github.com/vibecoding/ecommerce/internal/user/service"
 	uploadHandler "github.com/vibecoding/ecommerce/internal/upload/handler"
+	blogHandlerPkg "github.com/vibecoding/ecommerce/internal/blog/handler"
+	blogRepo "github.com/vibecoding/ecommerce/internal/blog/repository"
+	blogSvc "github.com/vibecoding/ecommerce/internal/blog/service"
+	settingHandlerPkg "github.com/vibecoding/ecommerce/internal/settings/handler"
+	settingRepo "github.com/vibecoding/ecommerce/internal/settings/repository"
+	settingSvc "github.com/vibecoding/ecommerce/internal/settings/service"
 	"github.com/vibecoding/ecommerce/pkg/biteship"
 	"github.com/vibecoding/ecommerce/pkg/cache"
 	"github.com/vibecoding/ecommerce/pkg/database"
@@ -74,6 +80,8 @@ func main() {
 	promoRepoImpl := promoRepo.NewPostgresPromoRepository(db)
 	orderRepoImpl := orderRepo.NewPostgresOrderRepository(db)
 	notificationRepoImpl := userRepo.NewPostgresNotificationRepository(db)
+	blogRepoImpl := blogRepo.NewPostgresBlogRepository(db)
+	settingRepoImpl := settingRepo.NewPostgresSettingRepository(db)
 
 	// --- Services & Handlers ---
 	
@@ -93,6 +101,10 @@ func main() {
 	// Upload Module
 	uploadHdl := uploadHandler.NewUploadHandler()
 
+	// Blog Module
+	blogService := blogSvc.NewBlogService(blogRepoImpl)
+	blogHandler := blogHandlerPkg.NewBlogHandler(blogService)
+
 	// Notification Module
 	notificationService := userSvc.NewNotificationService(notificationRepoImpl)
 	notificationHandler := userHandler.NewNotificationHandler(notificationService)
@@ -100,6 +112,10 @@ func main() {
 	// Order Module
 	orderService := orderSvc.NewOrderService(orderRepoImpl, userRepoImpl, productRepoImpl, promoRepoImpl, biteshipClient, xenditClient, mailerSvc, notificationService)
 	orderHandler := handler.NewOrderHandler(orderService)
+
+	// Setting Module
+	settingService := settingSvc.NewSettingService(settingRepoImpl)
+	settingHandler := settingHandlerPkg.NewSettingHandler(settingService)
 
 	// --- Schedulers ---
 	promoScheduler := promoSchedulerPkg.NewVoucherScheduler(db)
@@ -114,7 +130,7 @@ func main() {
 	}
 	r := gin.Default()
 	r.Use(gin.Recovery())
-	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.CORSMiddleware(cfg))
 
 	// Simple health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -151,6 +167,15 @@ func main() {
 			catalog.POST("/voucher/validate", promoHandler.ValidateVoucher)
 		}
 
+		blogs := v1.Group("/blogs")
+		{
+			blogs.GET("", blogHandler.ListPublic)
+			blogs.GET("/:id", blogHandler.GetByID)
+			blogs.GET("/slug/:slug", blogHandler.GetBySlug)
+		}
+
+		v1.GET("/settings", settingHandler.GetSettings)
+
 		// Webhooks
 		webhooks := v1.Group("/webhooks")
 		{
@@ -162,6 +187,7 @@ func main() {
 		{
 			userGroup.POST("/shipping/rates", orderHandler.GetShippingRates)
 			userGroup.POST("/checkout", orderHandler.Checkout)
+			userGroup.POST("/checkout/preview", orderHandler.PreviewCheckout)
 			userGroup.GET("/orders", orderHandler.MyOrders)
 			userGroup.GET("/notifications", notificationHandler.GetMyNotifications)
 			userGroup.PUT("/notifications/:id/read", notificationHandler.MarkAsRead)
@@ -217,6 +243,15 @@ func main() {
 			admin.POST("/orders/:id/cancel", orderHandler.AdminCancelOrder)
 			admin.POST("/orders/:id/deliver", orderHandler.AdminMarkDelivered)
 			admin.GET("/orders/:id/label", orderHandler.AdminGetLabel)
+
+			// Blog Mgt
+			admin.GET("/blogs", blogHandler.ListAll)
+			admin.POST("/blogs", blogHandler.Create)
+			admin.PUT("/blogs/:id", blogHandler.Update)
+			admin.DELETE("/blogs/:id", blogHandler.Delete)
+
+			// Settings Mgt
+			admin.PATCH("/settings", settingHandler.UpdateSettings)
 		}
 	}
 

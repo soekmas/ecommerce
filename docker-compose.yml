@@ -8,10 +8,14 @@ services:
       - "8080:8080"
     volumes:
       - ./backend:/app
-      - /app/uploads
     depends_on:
       - postgres
       - redis
+    env_file:
+      - ./backend/.env
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
     networks:
       - ecommerce_network
 
@@ -41,15 +45,6 @@ services:
       - ecommerce_network
     restart: unless-stopped
 
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: ecommerce_mailhog
-    ports:
-      - "1025:1025" # SMTP server
-      - "8025:8025" # Web UI
-    networks:
-      - ecommerce_network
-    restart: unless-stopped
 
   frontend:
     build: 

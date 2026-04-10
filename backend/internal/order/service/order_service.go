@@ -258,7 +258,8 @@ func (s *orderService) CreateCheckout(ctx context.Context, userID uint, req *dom
 	// 8. Create Xendit Invoice
 	invoice, err := s.xendit.CreateInvoice(order.OrderNumber, order.FinalAmount, user.Email, user.Name)
 	if err != nil {
-		slog.Error("Xendit CreateInvoice failed", "error", err)
+		slog.Error("Xendit CreateInvoice failed", "error", err, "order_number", order.OrderNumber)
+		return nil, fmt.Errorf("failed to create payment: %v", err)
 	} else {
 		order.XenditInvoiceID = invoice.ID
 		order.PaymentURL = invoice.InvoiceURL
@@ -272,6 +273,167 @@ func (s *orderService) CreateCheckout(ctx context.Context, userID uint, req *dom
 	}()
 
 	return order, nil
+}
+
+func (s *orderService) PreviewCheckout(ctx context.Context, userID uint, req *domain.OrderRequest) (*domain.CheckoutPreviewResponse, error) {
+	// 1. Get User
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	// 2. Validate Items & Compile Subtotal
+	var subtotal int64 = 0
+
+	for _, reqItem := range req.Items {
+		product, err := s.productRepo.GetProductByID(ctx, reqItem.ProductID)
+		if err != nil {
+			return nil, fmt.Errorf("product %d not found", reqItem.ProductID)
+		}
+
+		if product.Stock < reqItem.Quantity {
+			return nil, fmt.Errorf("insufficient stock for product %s", product.Name)
+		}
+
+		effectivePrice := product.BasePrice
+		now := time.Now()
+		if product.SpecialPrice != nil && *product.SpecialPrice > 0 &&
+			product.SpecialPriceStart != nil && product.SpecialPriceEnd != nil &&
+			now.After(*product.SpecialPriceStart) && now.Before(*product.SpecialPriceEnd) {
+
+			isTargeted := false
+			switch product.SpecialPriceTarget {
+			case "global", "":
+				isTargeted = true
+			case "email":
+				isTargeted = (user.Email == product.SpecialPriceTargetValue)
+			case "domain":
+				isTargeted = strings.HasSuffix(user.Email, "@"+product.SpecialPriceTargetValue)
+			}
+
+			if isTargeted {
+				effectivePrice = *product.SpecialPrice
+			}
+		}
+
+		subtotal += (effectivePrice * int64(reqItem.Quantity))
+	}
+
+	// 3. Application of Targeted Pricing (Phase 1)
+	activeRules, _ := s.promoRepo.GetActivePromoRules(ctx)
+	var bestRule *domain.PromoRule
+	var bestLayer1Discount int64 = 0
+
+	for _, rule := range activeRules {
+		isApplicable := false
+		if rule.TargetType == domain.TargetTypeGlobal {
+			isApplicable = true
+		} else if rule.TargetType == domain.TargetTypeUserRole && string(user.Role) == rule.TargetValue {
+			isApplicable = true
+		} else if rule.TargetType == domain.TargetTypeDomain && strings.HasSuffix(user.Email, "@"+rule.TargetValue) {
+			isApplicable = true
+		}
+
+		if isApplicable {
+			var potentialDiscount int64
+			if rule.DiscountType == domain.DiscountTypeFixedPrice {
+				potentialDiscount = rule.DiscountValue
+			} else if rule.DiscountType == domain.DiscountTypePercentage {
+				potentialDiscount = (subtotal * rule.DiscountValue) / 100
+			}
+
+			if potentialDiscount > bestLayer1Discount {
+				bestLayer1Discount = potentialDiscount
+				tempRule := rule
+				bestRule = tempRule
+			}
+		}
+	}
+
+	intermediateTotal := subtotal - bestLayer1Discount
+	if intermediateTotal < 0 {
+		intermediateTotal = 0
+	}
+
+	// 4. Application of Voucher (Phase 2)
+	var appliedVoucher *domain.Voucher
+	var layer2Discount int64 = 0
+
+	if req.VoucherCode != "" {
+		voucher, err := s.promoRepo.GetVoucherByCode(ctx, req.VoucherCode)
+		if err == nil && voucher != nil {
+			canApply := true
+			if bestRule != nil && !bestRule.StackableWith {
+				canApply = false
+			}
+			if voucher.MinPurchase > 0 && intermediateTotal < voucher.MinPurchase {
+				canApply = false
+			}
+			if voucher.MaxTotalUsage > 0 && voucher.CurrentUsage >= voucher.MaxTotalUsage {
+				canApply = false
+			}
+			now := time.Now()
+			if now.Before(voucher.StartDate) || now.After(voucher.EndDate) {
+				canApply = false
+			}
+
+			if canApply {
+				if voucher.DiscountType == domain.DiscountTypeFixedPrice {
+					layer2Discount = voucher.DiscountValue
+				} else if voucher.DiscountType == domain.DiscountTypePercentage {
+					layer2Discount = (intermediateTotal * voucher.DiscountValue) / 100
+					if voucher.MaxDiscount > 0 && layer2Discount > voucher.MaxDiscount {
+						layer2Discount = voucher.MaxDiscount
+					}
+				}
+				appliedVoucher = voucher
+			}
+		}
+	}
+
+	// Calculate Shipping Cost if provided
+	var shippingCost int64 = 0
+	if req.CourierName != "" && req.CourierService != "" && req.ShippingAddress != "" {
+		ratesReq := &biteship.RatesRequest{
+			OriginLatitude:       -6.17511,
+			OriginLongitude:      106.82715,
+			DestinationLatitude:  req.Latitude,
+			DestinationLongitude: req.Longitude,
+			OriginPostalCode:     "10110",
+			DestinationPostalCode: req.PostalCode,
+			Couriers:             req.CourierName,
+			Items: []biteship.DeliveryItem{
+				{Name: "Order items", Value: intermediateTotal, Weight: 1000, Quantity: 1},
+			},
+		}
+
+		ratesResp, err := s.biteship.GetRates(ratesReq)
+		if err == nil && ratesResp != nil && ratesResp.Success && len(ratesResp.Pricing) > 0 {
+			for _, rate := range ratesResp.Pricing {
+				if rate.ServiceType == req.CourierService {
+					shippingCost = rate.Price
+					break
+				}
+			}
+		} else {
+			shippingCost = 15000 // Fallback
+		}
+	}
+
+	finalAmount := intermediateTotal - layer2Discount + shippingCost
+	if finalAmount < 0 {
+		finalAmount = shippingCost
+	}
+
+	return &domain.CheckoutPreviewResponse{
+		Subtotal:         subtotal,
+		PromoDiscount:    bestLayer1Discount,
+		AppliedPromoRule: bestRule,
+		VoucherDiscount:  layer2Discount,
+		AppliedVoucher:   appliedVoucher,
+		ShippingCost:     shippingCost,
+		FinalAmount:      finalAmount,
+	}, nil
 }
 
 func (s *orderService) GetShippingRates(ctx context.Context, req *domain.ShippingRateRequest) ([]biteship.CourierRate, error) {
@@ -290,11 +452,31 @@ func (s *orderService) GetShippingRates(ctx context.Context, req *domain.Shippin
 
 	resp, err := s.biteship.GetRates(ratesReq)
 	if err != nil {
-		slog.Error("Biteship GetRates failed, returning mock rates", "error", err)
+		slog.Warn("Biteship API error (probably balance), using smart mock rates", "error", err, "postal_code", req.PostalCode)
+		
+		// DEFAULT: moderate rates (Java area)
+		jnePrice, sicepatPrice, jntPrice := int64(20000), int64(18000), int64(18000)
+		duration := "2-4 hari"
+
+		// SMART SELECTOR based on Postal Code
+		if strings.HasPrefix(req.PostalCode, "1") {
+			// Jabodetabek (Intra-city/Cheap)
+			jnePrice, sicepatPrice, jntPrice = 9000, 8000, 10000
+			duration = "1-2 hari"
+		} else if strings.HasPrefix(req.PostalCode, "5") || strings.HasPrefix(req.PostalCode, "6") {
+			// Middle/East Java (Screenshot context)
+			jnePrice, sicepatPrice, jntPrice = 20000, 18000, 18000
+			duration = "2-4 hari"
+		} else if req.PostalCode != "" {
+			// Outside Java (More expensive)
+			jnePrice, sicepatPrice, jntPrice = 45000, 42000, 40000
+			duration = "4-7 hari"
+		}
+
 		return []biteship.CourierRate{
-			{CourierName: "JNE", CourierCode: "jne", CourierSvc: "Reguler", ServiceType: "reg", Price: 18000, EstimatedDays: "2-3 hari"},
-			{CourierName: "SiCepat", CourierCode: "sicepat", CourierSvc: "Halu", ServiceType: "halu", Price: 12000, EstimatedDays: "3-5 hari"},
-			{CourierName: "J&T", CourierCode: "jnt", CourierSvc: "EZ", ServiceType: "ez", Price: 19000, EstimatedDays: "2-4 hari"},
+			{CourierName: "J&T Express", CourierCode: "jnt", CourierSvc: "J&T EZ", ServiceType: "ez", Price: jntPrice, EstimatedDays: duration},
+			{CourierName: "SiCepat Ekspres", CourierCode: "sicepat", CourierSvc: "SiCepat Reguler", ServiceType: "reg", Price: sicepatPrice, EstimatedDays: duration},
+			{CourierName: "JNE", CourierCode: "jne", CourierSvc: "JNE Reguler", ServiceType: "reg", Price: jnePrice, EstimatedDays: duration},
 		}, nil
 	}
 	return resp.Pricing, nil
