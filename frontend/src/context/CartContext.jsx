@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { AuthContext } from './AuthContext';
+import { calculateCartSubtotal } from '../utils/promoHelper';
 
 const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
+  const { user } = useContext(AuthContext);
   const [cart, setCart] = useState(() => {
     try {
       const savedCart = localStorage.getItem('cart');
@@ -54,7 +57,7 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
-  const cartTotal = cart.reduce((total, item) => total + (item.effective_price ?? item.base_price) * item.quantity, 0);
+  const cartTotal = calculateCartSubtotal(cart, user);
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
 
   return (

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import api, { getFullUrl } from '../utils/api';
 import { useCart } from '../context/CartContext';
+import { calculatePromoPrice } from '../utils/promoHelper';
+import { AuthContext } from '../context/AuthContext';
 import { 
   SquaresFour, List, 
   ShoppingCart, Star, 
@@ -11,11 +13,46 @@ import {
 } from 'phosphor-react';
 
 const FlashSales = () => {
+  const { user } = useContext(AuthContext);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(null);
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const { addToCart } = useCart();
+
+  // Countdown Logic
+  useEffect(() => {
+    if (products.length === 0) return;
+
+    // Find the latest end date among all products on sale
+    const endDates = products
+      .map(p => p.special_price_end ? new Date(p.special_price_end).getTime() : 0)
+      .filter(t => t > 0);
+    
+    if (endDates.length === 0) return;
+    
+    const targetDate = Math.max(...endDates);
+
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = targetDate - now;
+
+      if (distance < 0) {
+        clearInterval(timer);
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      } else {
+        setTimeLeft({
+          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((distance % (1000 * 60)) / 1000)
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [products]);
 
   useEffect(() => {
     fetchCategories();
@@ -38,8 +75,8 @@ const FlashSales = () => {
       params.append('limit', '100');
       const response = await api.get(`/catalog/products?${params.toString()}`);
       const all = response.data.data || [];
-      // Filter only items with special price
-      const onSale = all.filter(p => p.special_price && p.special_price > 0 && p.special_price < p.base_price);
+      // Filter only items with active special price using standardized logic
+      const onSale = all.filter(p => calculatePromoPrice(p, user).isSale);
       setProducts(onSale);
     } catch (error) {
       console.error(error);
@@ -110,10 +147,26 @@ const FlashSales = () => {
                <div className="relative z-10 space-y-4">
                   <h3 className="text-2xl font-black leading-tight">Don't Miss<br/>The Deal!</h3>
                   <p className="text-gray-400 text-xs font-bold leading-relaxed">Exclusive discounts for loyal customers.</p>
-                  <div className="pt-2">
+                   <div className="pt-2">
                     <div className="flex gap-2">
-                       <span className="bg-white/10 px-2 py-1 rounded-lg text-xs font-black">24H</span>
-                       <span className="bg-white/10 px-2 py-1 rounded-lg text-xs font-black">LEFT</span>
+                       {timeLeft.days > 0 && (
+                         <div className="flex flex-col items-center bg-white/10 px-3 py-2 rounded-xl border border-white/5 min-w-[50px]">
+                            <span className="text-sm font-black">{timeLeft.days}</span>
+                            <span className="text-[8px] font-bold opacity-50 uppercase">Days</span>
+                         </div>
+                       )}
+                       <div className="flex flex-col items-center bg-white/10 px-3 py-2 rounded-xl border border-white/5 min-w-[50px]">
+                          <span className="text-sm font-black">{String(timeLeft.hours).padStart(2, '0')}</span>
+                          <span className="text-[8px] font-bold opacity-50 uppercase">Hrs</span>
+                       </div>
+                       <div className="flex flex-col items-center bg-white/10 px-3 py-2 rounded-xl border border-white/5 min-w-[50px]">
+                          <span className="text-sm font-black">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                          <span className="text-[8px] font-bold opacity-50 uppercase">Min</span>
+                       </div>
+                       <div className="flex flex-col items-center bg-red-500/20 px-3 py-2 rounded-xl border border-red-500/20 min-w-[50px] shadow-lg shadow-red-500/10">
+                          <span className="text-sm font-black text-red-500">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                          <span className="text-[8px] font-bold text-red-500/50 uppercase italic">Sec</span>
+                       </div>
                     </div>
                   </div>
                </div>
@@ -151,7 +204,7 @@ const FlashSales = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProducts.map(product => {
-                  const discount = Math.round((1 - (product.special_price / product.base_price)) * 100);
+                  const { effectivePrice, isSale, discountPct } = calculatePromoPrice(product, user);
                   return (
                     <div 
                       key={product.id}
@@ -171,7 +224,7 @@ const FlashSales = () => {
                          {/* Discount Badge */}
                          <div className="absolute top-4 left-4 flex flex-col gap-1">
                             <span className="bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter px-3 py-1.5 rounded-lg shadow-lg">
-                               SAVE {discount}%
+                               SAVE {discountPct}%
                             </span>
                          </div>
                       </Link>
@@ -184,14 +237,17 @@ const FlashSales = () => {
                             </h3>
                          </Link>
                          
-                         {/* Progress Bar (Stock) */}
+                         {/* Progress Bar (Real-Time Sold) */}
                          <div className="space-y-1.5">
                             <div className="flex justify-between text-[10px] font-black uppercase text-gray-400">
-                               <span>Sold: {Math.min(10, product.stock)}/40</span>
+                               <span>Sold: {product.total_sold} / {product.total_sold + product.stock}</span>
                                <span className="text-red-500">Only {product.stock} Left</span>
                             </div>
                             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                               <div className="h-full bg-red-500 w-[40%] rounded-full shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                               <div 
+                                 className="h-full bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.3)] transition-all duration-1000" 
+                                 style={{ width: `${Math.round((product.total_sold / (product.total_sold + product.stock || 1)) * 100)}%` }}
+                               />
                             </div>
                          </div>
 
@@ -201,7 +257,7 @@ const FlashSales = () => {
                                Rp {product.base_price.toLocaleString()}
                             </span>
                             <span className="text-xl font-black text-red-500 tracking-tighter">
-                               Rp {product.special_price.toLocaleString()}
+                               Rp {effectivePrice.toLocaleString()}
                             </span>
                          </div>
                       </div>

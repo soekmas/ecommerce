@@ -110,7 +110,7 @@ func main() {
 	notificationHandler := userHandler.NewNotificationHandler(notificationService)
 
 	// Order Module
-	orderService := orderSvc.NewOrderService(orderRepoImpl, userRepoImpl, productRepoImpl, promoRepoImpl, biteshipClient, xenditClient, mailerSvc, notificationService)
+	orderService := orderSvc.NewOrderService(orderRepoImpl, userRepoImpl, productRepoImpl, promoRepoImpl, biteshipClient, xenditClient, mailerSvc, notificationService, redisClient)
 	orderHandler := handler.NewOrderHandler(orderService)
 
 	// Setting Module
@@ -130,7 +130,13 @@ func main() {
 	}
 	r := gin.Default()
 	r.Use(gin.Recovery())
+	
+	// Apply security middleware
+	r.Use(middleware.MaxBodySizeMiddleware(50 << 20)) // 50 MB Max Payload Size limit
+	r.Use(middleware.SecurityHeadersMiddleware())
+
 	r.Use(middleware.CORSMiddleware(cfg))
+	r.Use(middleware.RateLimitMiddleware())
 
 	// Simple health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -148,7 +154,7 @@ func main() {
 	v1 := r.Group("/api/v1")
 	{
 		// Public Routes
-		auth := v1.Group("/auth")
+		auth := v1.Group("/auth").Use(middleware.StrictAuthRateLimitMiddleware())
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.GET("/verify", authHandler.VerifyEmail)
@@ -220,6 +226,7 @@ func main() {
 			admin.POST("/products", productHandler.CreateProduct)
 			admin.PUT("/products/:id", productHandler.UpdateProduct)
 			admin.DELETE("/products/:id", productHandler.DeleteProduct)
+			admin.POST("/products/import-promo", productHandler.ImportPromoCSV)
 
 			// Uploads
 			admin.POST("/upload", uploadHdl.UploadMultiple)

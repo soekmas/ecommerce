@@ -7,7 +7,9 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+	"encoding/json"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/vibecoding/ecommerce/internal/domain"
 	"github.com/vibecoding/ecommerce/pkg/biteship"
 	"github.com/vibecoding/ecommerce/pkg/mailer"
@@ -22,6 +24,7 @@ type orderService struct {
 	xendit          xendit.Client
 	mailer          mailer.Mailer
 	notificationSvc domain.NotificationService
+	redisClient     *redis.Client
 }
 
 func NewOrderService(
@@ -33,6 +36,7 @@ func NewOrderService(
 	xendit xendit.Client,
 	mailer mailer.Mailer,
 	notificationSvc domain.NotificationService,
+	redisClient *redis.Client,
 ) domain.OrderService {
 	return &orderService{
 		orderRepo:       orderRepo,
@@ -43,6 +47,7 @@ func NewOrderService(
 		xendit:          xendit,
 		mailer:          mailer,
 		notificationSvc: notificationSvc,
+		redisClient:     redisClient,
 	}
 }
 
@@ -56,6 +61,7 @@ func (s *orderService) CreateCheckout(ctx context.Context, userID uint, req *dom
 	// 2. Validate Items & Compile OrderItems, calculate Subtotal
 	var orderItems []domain.OrderItem
 	var subtotal int64 = 0
+	var totalWeight int64 = 0
 
 	for _, reqItem := range req.Items {
 		product, err := s.productRepo.GetProductByID(ctx, reqItem.ProductID)
@@ -68,14 +74,12 @@ func (s *orderService) CreateCheckout(ctx context.Context, userID uint, req *dom
 		}
 
 		// Determine effective price: use SpecialPrice if active and targeted to this user
-		effectivePrice := product.BasePrice
+		isTargeted := false
 		now := time.Now()
 		if product.SpecialPrice != nil && *product.SpecialPrice > 0 &&
 			product.SpecialPriceStart != nil && product.SpecialPriceEnd != nil &&
 			now.After(*product.SpecialPriceStart) && now.Before(*product.SpecialPriceEnd) {
 
-			// Check target
-			isTargeted := false
 			switch product.SpecialPriceTarget {
 			case "global", "":
 				isTargeted = true
@@ -84,19 +88,44 @@ func (s *orderService) CreateCheckout(ctx context.Context, userID uint, req *dom
 			case "domain":
 				isTargeted = strings.HasSuffix(user.Email, "@"+product.SpecialPriceTargetValue)
 			}
-
-			if isTargeted {
-				effectivePrice = *product.SpecialPrice
-			}
 		}
 
-		orderItems = append(orderItems, domain.OrderItem{
-			ProductID: product.ID,
-			Quantity:  reqItem.Quantity,
-			Price:     effectivePrice, // Save the actual price paid
-		})
+		var specialQty int
+		var normalQty int
 
-		subtotal += (effectivePrice * int64(reqItem.Quantity))
+		if isTargeted && product.SpecialPriceMaxQty != nil && *product.SpecialPriceMaxQty > 0 && reqItem.Quantity > *product.SpecialPriceMaxQty {
+			specialQty = *product.SpecialPriceMaxQty
+			normalQty = reqItem.Quantity - specialQty
+		} else if isTargeted {
+			specialQty = reqItem.Quantity
+			normalQty = 0
+		} else {
+			specialQty = 0
+			normalQty = reqItem.Quantity
+		}
+
+		if specialQty > 0 {
+			orderItems = append(orderItems, domain.OrderItem{
+				ProductID: product.ID,
+				Quantity:  specialQty,
+				Price:     *product.SpecialPrice,
+			})
+			subtotal += (*product.SpecialPrice * int64(specialQty))
+		}
+		if normalQty > 0 {
+			orderItems = append(orderItems, domain.OrderItem{
+				ProductID: product.ID,
+				Quantity:  normalQty,
+				Price:     product.BasePrice,
+			})
+			subtotal += (product.BasePrice * int64(normalQty))
+		}
+
+		totalWeight += product.Weight * int64(reqItem.Quantity)
+	}
+
+	if totalWeight <= 0 {
+		totalWeight = 1000
 	}
 
 	// 3. Application of Targeted Pricing (Phase 1)
@@ -187,7 +216,7 @@ func (s *orderService) CreateCheckout(ctx context.Context, userID uint, req *dom
 		DestinationPostalCode: req.PostalCode,
 		Couriers:              req.CourierName,
 		Items: []biteship.DeliveryItem{
-			{Name: "Order items", Value: intermediateTotal, Weight: 1000, Quantity: 1}, // 1kg
+			{Name: "Order items", Value: intermediateTotal, Weight: int(totalWeight), Quantity: 1},
 		},
 	}
 	
@@ -245,9 +274,10 @@ func (s *orderService) CreateCheckout(ctx context.Context, userID uint, req *dom
 		return nil, err
 	}
 
-	// Decrement Stock
+	// Decrement Stock & Increment Total Sold
 	for _, item := range orderItems {
 		_ = s.productRepo.DecrementStock(ctx, item.ProductID, item.Quantity)
+		_ = s.productRepo.IncrementTotalSold(ctx, item.ProductID, item.Quantity)
 	}
 
 	// Increment Voucher Usage
@@ -284,6 +314,7 @@ func (s *orderService) PreviewCheckout(ctx context.Context, userID uint, req *do
 
 	// 2. Validate Items & Compile Subtotal
 	var subtotal int64 = 0
+	var totalWeight int64 = 0
 
 	for _, reqItem := range req.Items {
 		product, err := s.productRepo.GetProductByID(ctx, reqItem.ProductID)
@@ -295,13 +326,12 @@ func (s *orderService) PreviewCheckout(ctx context.Context, userID uint, req *do
 			return nil, fmt.Errorf("insufficient stock for product %s", product.Name)
 		}
 
-		effectivePrice := product.BasePrice
+		isTargeted := false
 		now := time.Now()
 		if product.SpecialPrice != nil && *product.SpecialPrice > 0 &&
 			product.SpecialPriceStart != nil && product.SpecialPriceEnd != nil &&
 			now.After(*product.SpecialPriceStart) && now.Before(*product.SpecialPriceEnd) {
 
-			isTargeted := false
 			switch product.SpecialPriceTarget {
 			case "global", "":
 				isTargeted = true
@@ -310,13 +340,34 @@ func (s *orderService) PreviewCheckout(ctx context.Context, userID uint, req *do
 			case "domain":
 				isTargeted = strings.HasSuffix(user.Email, "@"+product.SpecialPriceTargetValue)
 			}
-
-			if isTargeted {
-				effectivePrice = *product.SpecialPrice
-			}
 		}
 
-		subtotal += (effectivePrice * int64(reqItem.Quantity))
+		var specialQty int
+		var normalQty int
+
+		if isTargeted && product.SpecialPriceMaxQty != nil && *product.SpecialPriceMaxQty > 0 && reqItem.Quantity > *product.SpecialPriceMaxQty {
+			specialQty = *product.SpecialPriceMaxQty
+			normalQty = reqItem.Quantity - specialQty
+		} else if isTargeted {
+			specialQty = reqItem.Quantity
+			normalQty = 0
+		} else {
+			specialQty = 0
+			normalQty = reqItem.Quantity
+		}
+
+		if specialQty > 0 {
+			subtotal += (*product.SpecialPrice * int64(specialQty))
+		}
+		if normalQty > 0 {
+			subtotal += (product.BasePrice * int64(normalQty))
+		}
+
+		totalWeight += product.Weight * int64(reqItem.Quantity)
+	}
+
+	if totalWeight <= 0 {
+		totalWeight = 1000
 	}
 
 	// 3. Application of Targeted Pricing (Phase 1)
@@ -403,7 +454,7 @@ func (s *orderService) PreviewCheckout(ctx context.Context, userID uint, req *do
 			DestinationPostalCode: req.PostalCode,
 			Couriers:             req.CourierName,
 			Items: []biteship.DeliveryItem{
-				{Name: "Order items", Value: intermediateTotal, Weight: 1000, Quantity: 1},
+				{Name: "Order items", Value: intermediateTotal, Weight: int(totalWeight), Quantity: 1},
 			},
 		}
 
@@ -437,6 +488,33 @@ func (s *orderService) PreviewCheckout(ctx context.Context, userID uint, req *do
 }
 
 func (s *orderService) GetShippingRates(ctx context.Context, req *domain.ShippingRateRequest) ([]biteship.CourierRate, error) {
+	// Calculate Total Weight & Value
+	var totalWeight int64 = 0
+	var totalValue int64 = 0
+	for _, item := range req.Items {
+		if product, err := s.productRepo.GetProductByID(ctx, item.ProductID); err == nil {
+			totalWeight += product.Weight * int64(item.Quantity)
+			totalValue += product.BasePrice * int64(item.Quantity)
+		}
+	}
+	if totalWeight <= 0 {
+		totalWeight = 1000 // Fallback minimum weight 1kg
+	}
+	if totalValue <= 0 {
+		totalValue = 100000 // Fallback value
+	}
+
+	// 1. Caching Layer
+	cacheKey := fmt.Sprintf("biteship_rates:origin_10110:dest_%s:weight_%d", req.PostalCode, totalWeight)
+	if s.redisClient != nil && req.PostalCode != "" {
+		if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
+			var cachedRates []biteship.CourierRate
+			if err := json.Unmarshal([]byte(cached), &cachedRates); err == nil {
+				return cachedRates, nil
+			}
+		}
+	}
+
 	ratesReq := &biteship.RatesRequest{
 		OriginLatitude:       -6.17511, // Warehouse
 		OriginLongitude:      106.82715,
@@ -446,7 +524,7 @@ func (s *orderService) GetShippingRates(ctx context.Context, req *domain.Shippin
 		DestinationPostalCode: req.PostalCode,
 		Couriers:             "jne,sicepat,jnt,anteraja",
 		Items: []biteship.DeliveryItem{
-			{Name: "Shipping Inquiry", Value: 100000, Weight: 1000, Quantity: 1},
+			{Name: "Shipping Inquiry", Value: totalValue, Weight: int(totalWeight), Quantity: 1},
 		},
 	}
 
@@ -479,6 +557,14 @@ func (s *orderService) GetShippingRates(ctx context.Context, req *domain.Shippin
 			{CourierName: "JNE", CourierCode: "jne", CourierSvc: "JNE Reguler", ServiceType: "reg", Price: jnePrice, EstimatedDays: duration},
 		}, nil
 	}
+	
+	// 2. Save Successful External Fetch to Cache (Valid for 24 Hours)
+	if s.redisClient != nil && req.PostalCode != "" && len(resp.Pricing) > 0 {
+		if jsonData, err := json.Marshal(resp.Pricing); err == nil {
+			s.redisClient.Set(ctx, cacheKey, jsonData, 24*time.Hour)
+		}
+	}
+
 	return resp.Pricing, nil
 }
 

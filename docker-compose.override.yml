@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+    # Port 8080 sudah diekspos di base, tidak perlu di sini kecuali mau diganti.
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  postgres:
+    ports:
+      - "5432:5432" # Membuka akses DB ke host hanya saat dev
+
+  redis:
+    ports:
+      - "6379:6379" # Membuka akses Redis ke host hanya saat dev
+
+  mailhog:
+    ports:
+      - "8025:8025" # Web UI untuk cek email masuk
+      - "1025:1025" # SMTP server

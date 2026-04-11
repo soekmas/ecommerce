@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api, { getFullUrl } from '../utils/api';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
+import { calculatePromoPrice } from '../utils/promoHelper';
 import { 
   ArrowLeft, 
   ShoppingCart, 
@@ -23,6 +25,8 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
+  
+  const { user } = useContext(AuthContext);
 
   const { addToCart } = useCart();
   const [added, setAdded] = useState(false);
@@ -92,11 +96,7 @@ const ProductDetail = () => {
     </div>
   );
 
-  const isSale = product.special_price && 
-                 new Date() >= new Date(product.special_price_start) && 
-                 new Date() <= new Date(product.special_price_end);
-
-  const displayPrice = isSale ? product.special_price : product.base_price;
+  const { effectivePrice: displayPrice, isSale, discountPct } = calculatePromoPrice(product, user);
 
   return (
     <div className="animate-fade-in pb-32">
@@ -186,7 +186,7 @@ const ProductDetail = () => {
                   <div className="flex items-center gap-3">
                      <span className="text-xl text-gray-300 line-through font-bold">{formatPrice(product.base_price)}</span>
                      <span className="bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                        Save {Math.round((1 - product.special_price / product.base_price) * 100)}%
+                        Save {discountPct}%
                      </span>
                   </div>
                 )}
@@ -315,7 +315,7 @@ const ProductDetail = () => {
                 </div>
                 <div className="px-4 space-y-2 text-center">
                    <h3 className="text-lg font-black text-[#111827] group-hover:text-[#2B59FF] transition-colors truncate">{item.name}</h3>
-                   <p className="text-xl font-black text-[#111827]">{formatPrice(item.base_price)}</p>
+                   <p className="text-xl font-black text-[#111827]">{formatPrice(calculatePromoPrice(item, user).effectivePrice)}</p>
                 </div>
               </Link>
             ))}

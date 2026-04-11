@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Package, Plus, Trash, Pencil, Upload, X, ShieldCheck, 
   Tag, Cube, ImageSquare, ListChecks, MagnifyingGlass,
   Funnel, CaretDown, CaretUp, ArrowsDownUp, CheckCircle,
-  XCircle, DotsThreeVertical
+  XCircle, DotsThreeVertical, Lightning
 } from 'phosphor-react';
 import api, { getFullUrl } from '../utils/api';
 import Button from '../components/Button';
@@ -21,6 +21,7 @@ const AdminProducts = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', order: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [filterCategory, setFilterCategory] = useState('');
   const [activeActionId, setActiveActionId] = useState(null);
 
   // Close dropdown on click outside
@@ -43,6 +44,13 @@ const AdminProducts = () => {
     category_id: '',
     base_price: '',
     stock: '',
+    weight: 1000,
+    special_price: '',
+    special_price_start: '',
+    special_price_end: '',
+    special_price_target: 'global',
+    special_price_target_value: '',
+    special_price_max_qty: '',
     specifications: {},
     image_urls: [],
     is_active: true
@@ -51,6 +59,18 @@ const AdminProducts = () => {
   const [specVal, setSpecVal] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const modalBodyRef = useRef(null);
+
+  const showErrorAndScrollUp = (msg) => {
+    setError(msg);
+    // More reliable way to scroll after render
+    requestAnimationFrame(() => {
+      if (modalBodyRef.current) {
+        modalBodyRef.current.scrollTop = 0;
+        modalBodyRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  };
 
   useEffect(() => {
     fetchData();
@@ -91,6 +111,13 @@ const AdminProducts = () => {
         category_id: product.category_id,
         base_price: product.base_price,
         stock: product.stock,
+        weight: product.weight || 1000,
+        special_price: product.special_price || '',
+        special_price_start: product.special_price_start ? new Date(product.special_price_start).toISOString().split('T')[0] : '',
+        special_price_end: product.special_price_end ? new Date(product.special_price_end).toISOString().split('T')[0] : '',
+        special_price_target: product.special_price_target || 'global',
+        special_price_target_value: product.special_price_target_value || '',
+        special_price_max_qty: product.special_price_max_qty || '',
         specifications: product.specifications || {},
         image_urls: product.image_urls || [],
         is_active: product.is_active ?? true
@@ -105,6 +132,13 @@ const AdminProducts = () => {
         category_id: '',
         base_price: '',
         stock: '',
+        weight: 1000,
+        special_price: '',
+        special_price_start: '',
+        special_price_end: '',
+        special_price_target: 'global',
+        special_price_target_value: '',
+        special_price_max_qty: '',
         specifications: {},
         image_urls: [],
         is_active: true
@@ -125,6 +159,12 @@ const AdminProducts = () => {
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     const validFiles = files.filter(file => ['image/png', 'image/jpeg', 'image/jpg'].includes(file.type));
+    const overgrownFiles = validFiles.filter(file => file.size > 5 * 1024 * 1024);
+
+    if (overgrownFiles.length > 0) {
+      showErrorAndScrollUp(`Files ${overgrownFiles.map(f => f.name).join(', ')} are too large. Max 5MB allowed.`);
+      return;
+    }
 
     if (validFiles.length === 0) return;
 
@@ -132,15 +172,13 @@ const AdminProducts = () => {
     validFiles.forEach(file => uploadFormData.append('images', file));
 
     try {
-      const res = await api.post('/admin/upload', uploadFormData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/admin/upload', uploadFormData);
       setFormData(prev => ({
         ...prev,
         image_urls: [...prev.image_urls, ...res.data.data]
       }));
     } catch (err) {
-      setError(err.response?.data?.message || "Upload failed");
+      showErrorAndScrollUp(err.response?.data?.message || "Upload failed");
     }
   };
 
@@ -173,9 +211,14 @@ const AdminProducts = () => {
     setSubmitting(true);
     const payload = {
       ...formData,
-      base_price: parseInt(formData.base_price),
-      stock: parseInt(formData.stock),
-      category_id: parseInt(formData.category_id)
+      base_price: parseInt(formData.base_price) || 0,
+      stock: parseInt(formData.stock) || 0,
+      weight: parseInt(formData.weight) || 1000,
+      category_id: parseInt(formData.category_id) || 0,
+      special_price: formData.special_price ? parseInt(formData.special_price) : null,
+      special_price_max_qty: formData.special_price_max_qty ? parseInt(formData.special_price_max_qty) : null,
+      special_price_start: (formData.special_price_start && formData.special_price_start !== '') ? new Date(formData.special_price_start).toISOString() : null,
+      special_price_end: (formData.special_price_end && formData.special_price_end !== '') ? new Date(formData.special_price_end).toISOString() : null
     };
 
     try {
@@ -187,7 +230,7 @@ const AdminProducts = () => {
       setShowModal(false);
       fetchData();
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to save product");
+      showErrorAndScrollUp(err.response?.data?.message || err.response?.data?.debug_error || "Failed to save product");
     } finally {
       setSubmitting(false);
     }
@@ -204,11 +247,15 @@ const AdminProducts = () => {
   };
 
   // Filter & Logic
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         p.category?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = filterCategory === '' || p.category_id === parseInt(filterCategory);
+    
+    return matchesSearch && matchesCategory;
+  });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     let aVal = a[sortConfig.key];
@@ -245,16 +292,30 @@ const AdminProducts = () => {
         </div>
 
         {/* Filters & Search */}
-        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
+        <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
             <MagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input 
               type="text"
-              placeholder="Search products by name, SKU, or category..."
+              placeholder="Search products..."
               className="w-full pl-12 pr-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-black/5 focus:border-black transition-all text-sm font-medium"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
             />
+          </div>
+          <div className="relative w-full md:w-64">
+            <Funnel className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <select 
+              className="w-full pl-11 pr-10 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-black/5 focus:border-black transition-all text-sm font-bold appearance-none cursor-pointer"
+              value={filterCategory}
+              onChange={(e) => { setFilterCategory(e.target.value); setCurrentPage(1); }}
+            >
+              <option value="">All Categories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <CaretDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
         </div>
 
@@ -420,6 +481,7 @@ const AdminProducts = () => {
         onClose={() => setShowModal(false)}
         title={currentProduct ? 'Edit Product Details' : 'Create New Product Entry'}
         size="2xl"
+        bodyRef={modalBodyRef}
         footer={(
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-6">
@@ -554,8 +616,88 @@ const AdminProducts = () => {
                     />
                   </div>
                 </div>
+                <div className="col-span-1 md:col-span-2 space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Product Weight (Gram)</label>
+                  <div className="relative">
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 font-black text-gray-300 text-[10px] uppercase">Grams</span>
+                    <input 
+                      type="number" required min="1"
+                      className="w-full px-5 py-3.5 bg-white border border-gray-100 rounded-2xl focus:ring-4 focus:ring-black/5 focus:border-black transition-all text-sm font-black" 
+                      value={formData.weight} onChange={(e) => setFormData({...formData, weight: e.target.value})}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Special Price & Promotion */}
+            <div className="bg-indigo-50/50 rounded-3xl p-8 border border-indigo-100 space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-indigo-100/50">
+                <Lightning size={20} className="text-indigo-600" weight="bold" />
+                <h3 className="text-sm font-black uppercase tracking-widest text-indigo-900">Special Price & Promotion</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Promo Price (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-indigo-200 text-xs">Rp</span>
+                    <input 
+                      type="number" min="0"
+                      className="w-full pl-12 pr-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-black text-indigo-600" 
+                      value={formData.special_price} onChange={(e) => setFormData({...formData, special_price: e.target.value})}
+                      placeholder="Leave empty for normal price"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Max Qty per User</label>
+                  <input 
+                    type="number" min="1"
+                    className="w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-bold" 
+                    value={formData.special_price_max_qty} onChange={(e) => setFormData({...formData, special_price_max_qty: e.target.value})}
+                    placeholder="Unlimited if empty"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Promo Start Date</label>
+                  <input 
+                    type="date"
+                    className="w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-bold" 
+                    value={formData.special_price_start} onChange={(e) => setFormData({...formData, special_price_start: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Promo End Date</label>
+                  <input 
+                    type="date"
+                    className="w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-bold" 
+                    value={formData.special_price_end} onChange={(e) => setFormData({...formData, special_price_end: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Target Audience</label>
+                  <select 
+                    className="w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-bold"
+                    value={formData.special_price_target} onChange={(e) => setFormData({...formData, special_price_target: e.target.value})}
+                  >
+                    <option value="global">All Users (Global)</option>
+                    <option value="email">Specific Email</option>
+                    <option value="domain">Email Domain (e.g. @company.com)</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Target Value</label>
+                  <input 
+                    type="text"
+                    className="w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-bold" 
+                    value={formData.special_price_target_value} onChange={(e) => setFormData({...formData, special_price_target_value: e.target.value})}
+                    placeholder="user@mail.com or @domain.com"
+                    disabled={formData.special_price_target === 'global'}
+                  />
+                </div>
+              </div>
+            </div>
+
 
             {/* Product Specifications Section */}
             <div className="bg-white rounded-3xl p-8 border border-gray-100 space-y-6 shadow-sm">

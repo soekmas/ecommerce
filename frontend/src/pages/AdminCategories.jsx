@@ -287,12 +287,12 @@ const AdminCategories = () => {
                           
                           {activeDropdown === category.id && (
                             <>
-                              <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)}></div>
-                              <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 focus:outline-none z-20 overflow-hidden border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                              <div className="fixed inset-0 z-[60]" onClick={() => setActiveDropdown(null)}></div>
+                              <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 w-48 origin-right rounded-2xl bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] ring-1 ring-black/5 focus:outline-none z-[70] overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 slide-in-from-right-2 duration-200">
                                 <div className="py-2">
-                                  <DropdownItem icon={<PencilSimple size={18} />} label="Edit Category" onClick={() => openEditModal(category)} />
+                                  <DropdownItem icon={<PencilSimple size={18} weight="bold" />} label="Edit Category" onClick={() => openEditModal(category)} />
                                   <div className="h-px bg-gray-50 my-1"></div>
-                                  <DropdownItem icon={<Trash size={18} />} label="Delete" color="text-red-600 hover:bg-red-50" onClick={() => openDeleteModal(category)} />
+                                  <DropdownItem icon={<Trash size={18} weight="bold" />} label="Delete" color="text-red-500 hover:bg-red-50" onClick={() => openDeleteModal(category)} />
                                 </div>
                               </div>
                             </>

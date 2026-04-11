@@ -1,10 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
 import { getFullUrl } from '../utils/api';
-import { Trash, Minus, Plus, ShoppingBag, ArrowRight, Package, Truck, ShieldCheck, CaretLeft } from 'phosphor-react';
+import { calculateItemTotal, calculatePromoPrice } from '../utils/promoHelper';
+import { Trash, Minus, Plus, ShoppingBag, ArrowRight, Package, Truck, ShieldCheck, CaretLeft, CaretRight } from 'phosphor-react';
 
 const Cart = () => {
+  const { user } = React.useContext(AuthContext);
   const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
 
   if (cart.length === 0) {
@@ -26,6 +29,15 @@ const Cart = () => {
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 animate-fade-in pb-32 pt-12">
+      {/* Breadcrumbs */}
+      <div className="py-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+         <Link to="/" className="hover:text-gray-900 transition-colors">Home</Link>
+         <CaretRight size={10} />
+         <Link to="/shop" className="hover:text-gray-900 transition-colors">Shop</Link>
+         <CaretRight size={10} />
+         <span className="text-gray-900">Bag</span>
+      </div>
+
       {/* Header Area */}
       <div className="py-12 space-y-3">
         <h1 className="text-5xl font-black text-[#111827] tracking-tighter">Your Bag.</h1>
@@ -68,8 +80,20 @@ const Cart = () => {
                     
                     <div className="text-right">
                       <p className="text-xl font-black text-[#111827] tracking-tight">
-                        Rp {((item.effective_price ?? item.base_price) * item.quantity).toLocaleString('id-ID')}
+                        Rp {calculateItemTotal(item, item.quantity, user).toLocaleString('id-ID')}
                       </p>
+                      {(() => {
+                        const promo = calculatePromoPrice(item, user);
+                        const isSplit = promo.isSale && item.special_price_max_qty > 0 && item.quantity > item.special_price_max_qty;
+                        if (isSplit) {
+                          return (
+                            <p className="text-[10px] font-bold text-[#2B59FF] mt-1 italic uppercase tracking-wider">
+                              {item.special_price_max_qty} Promo + {item.quantity - item.special_price_max_qty} Regular
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
 

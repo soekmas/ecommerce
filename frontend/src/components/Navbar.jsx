@@ -106,13 +106,21 @@ const Navbar = () => {
             </button>
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 group shrink-0">
-              <div className="text-[#2B59FF] transition-transform group-hover:scale-105">
-                <Storefront size={28} weight="fill" />
+            <Link to="/" className="flex items-center gap-3 group shrink-0">
+              <div className="flex items-center gap-3">
+                {settings.logo ? (
+                  <div className="h-8 md:h-9 transition-transform group-hover:scale-110">
+                    <img src={getFullUrl(settings.logo)} alt={settings.company_name} className="h-full w-auto object-contain" />
+                  </div>
+                ) : (
+                  <div className="text-[#2B59FF] transition-transform group-hover:scale-105">
+                    <Storefront size={28} weight="fill" />
+                  </div>
+                )}
+                <span className="text-xl md:text-2xl font-black text-[#111827] tracking-tighter truncate max-w-[150px] md:max-w-none group-hover:text-[#2B59FF] transition-colors">
+                  {settings.company_name}
+                </span>
               </div>
-              <span className="text-xl md:text-2xl font-bold text-[#111827] tracking-tight truncate max-w-[120px] md:max-w-none">
-                {settings.company_name}
-              </span>
             </Link>
 
             {/* Search Bar - Desktop */}

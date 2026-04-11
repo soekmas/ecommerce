@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import api, { getFullUrl } from '../utils/api';
 import Button from '../components/Button';
+import { calculateItemTotal, calculatePromoPrice } from '../utils/promoHelper';
 import { ArrowLeft, CreditCard, CheckCircle, Tag, X, CircleNotch, MapPin, MagnifyingGlass, CaretRight, NavigationArrow, Package, ShieldCheck, Truck, ArrowRight } from 'phosphor-react';
 
 const Checkout = () => {
@@ -428,11 +429,15 @@ const Checkout = () => {
       {/* Navigation & Header */}
       <div className="py-8 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/cart" className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#2B59FF] hover:border-[#2B59FF] transition-all shadow-sm">
+          <Link to="/cart" className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#2B59FF] hover:border-[#2B59FF] transition-all shadow-sm">
             <ArrowLeft size={16} weight="bold" />
           </Link>
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-             <Link to="/cart" className="hover:text-gray-900">Bag</Link>
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-400">
+             <Link to="/" className="hover:text-gray-900 transition-colors">Home</Link>
+             <CaretRight size={10} />
+             <Link to="/shop" className="hover:text-gray-900 transition-colors">Shop</Link>
+             <CaretRight size={10} />
+             <Link to="/cart" className="hover:text-gray-900 transition-colors">Bag</Link>
              <CaretRight size={10} />
              <span className="text-gray-900">Checkout</span>
           </div>
@@ -462,12 +467,12 @@ const Checkout = () => {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
                      <MapPin size={20} weight="bold" className="text-[#2B59FF]" />
-                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Shipping Address</span>
+                     <span className="text-xs font-black uppercase tracking-widest text-gray-400">Shipping Address</span>
                   </div>
                   <button 
                     type="button" 
                     onClick={() => setShowAddressModal(true)}
-                    className="text-[10px] font-black uppercase tracking-widest text-[#2B59FF] hover:underline"
+                    className="text-xs font-black uppercase tracking-widest text-[#2B59FF] hover:underline"
                   >
                     {formData.address ? 'Edit Address' : 'Add Address'}
                   </button>
@@ -480,11 +485,11 @@ const Checkout = () => {
                     </p>
                     <div className="flex gap-6 mt-4 pt-4 border-t border-gray-200/50">
                        <div className="space-y-1">
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Phone</p>
+                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Phone</p>
                           <p className="text-sm font-bold text-[#111827]">{formData.phone || profile?.phone || '-'}</p>
                        </div>
                        <div className="space-y-1">
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Postal</p>
+                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Postal</p>
                           <p className="text-sm font-bold text-[#111827]">{formData.postal_code || '-'}</p>
                        </div>
                     </div>
@@ -538,7 +543,7 @@ const Checkout = () => {
                         </div>
                         <div>
                           <p className="text-lg font-black text-[#111827]">{rate.courier_name}</p>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{rate.courier_service_name}</p>
+                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{rate.courier_service_name}</p>
                         </div>
                         <div className="flex justify-between items-center pt-3 border-t border-gray-100">
                            <span className="text-[10px] font-bold text-gray-400">{rate.duration}</span>
@@ -585,7 +590,6 @@ const Checkout = () => {
             
             <div className="space-y-6 max-h-[300px] overflow-y-auto pr-4 custom-scrollbar">
                 {cart.map(item => {
-                    const price = item.effective_price ?? item.base_price;
                     return (
                       <div key={item.id} className="flex justify-between items-center gap-4 group">
                           <div className="flex items-center gap-4">
@@ -597,9 +601,21 @@ const Checkout = () => {
                               <div className="space-y-1">
                                   <p className="text-sm font-black text-[#111827] line-clamp-1">{item.name}</p>
                                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Qty: {item.quantity}</p>
+                                  {(() => {
+                                      const promo = calculatePromoPrice(item, user);
+                                      const isSplit = promo.isSale && item.special_price_max_qty > 0 && item.quantity > item.special_price_max_qty;
+                                      if (isSplit) {
+                                          return (
+                                              <p className="text-[8px] font-bold text-[#2B59FF] italic uppercase tracking-wider">
+                                                  {item.special_price_max_qty} Promo + {item.quantity - item.special_price_max_qty} Regular
+                                              </p>
+                                          );
+                                      }
+                                      return null;
+                                  })()}
                               </div>
                           </div>
-                          <p className="text-sm font-black text-[#111827]">Rp {(price * item.quantity).toLocaleString('id-ID')}</p>
+                          <p className="text-sm font-black text-[#111827]">Rp {calculateItemTotal(item, item.quantity, user).toLocaleString('id-ID')}</p>
                       </div>
                     );
                 })}
@@ -613,7 +629,7 @@ const Checkout = () => {
                       value={voucherCode}
                       onChange={e => { setVoucherCode(e.target.value.toUpperCase()); setVoucherError(''); }}
                       placeholder="PROMO CODE"
-                      className="flex-1 px-5 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-[#2B59FF] transition-all font-black text-[10px] tracking-widest"
+                      className="flex-1 px-5 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-[#2B59FF] transition-all font-bold text-sm"
                     />
                     <button
                       type="button"
@@ -642,12 +658,12 @@ const Checkout = () => {
             
             <div className="space-y-4 pt-6 border-t border-gray-50">
                 <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subtotal</span>
+                    <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Subtotal</span>
                     <span className="font-black text-[#111827]">Rp {currentSubtotal.toLocaleString('id-ID')}</span>
                 </div>
                 {previewData && previewData.promo_discount > 0 && (
                    <div className="flex justify-between items-center text-[#2B59FF]">
-                       <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+                       <span className="text-xs font-black uppercase tracking-widest flex items-center gap-1">
                           <Tag size={12} weight="fill" /> Promo: {previewData.applied_promo_rule?.name || 'Discount'}
                        </span>
                        <span className="font-black">-Rp {previewData.promo_discount.toLocaleString('id-ID')}</span>

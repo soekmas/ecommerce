@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api, { getFullUrl } from '../utils/api';
-import { Plus, PencilSimple, Trash, X, FloppyDisk, ImageSquare } from 'phosphor-react';
+import { Plus, PencilSimple, Trash, X, FloppyDisk, ImageSquare, Warning, CheckCircle } from 'phosphor-react';
 
 const AdminBlogs = () => {
   const [blogs, setBlogs] = useState([]);
@@ -16,6 +16,17 @@ const AdminBlogs = () => {
     is_active: true
   });
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const modalRef = useRef(null);
+
+  const showErrorAndScrollUp = (msg) => {
+    setError(msg);
+    requestAnimationFrame(() => {
+      if (modalRef.current) {
+        modalRef.current.scrollTop = 0;
+      }
+    });
+  };
 
   useEffect(() => {
     fetchBlogs();
@@ -45,22 +56,26 @@ const AdminBlogs = () => {
   const handleFileChange = async (e) => {
     if (!e.target.files.length) return;
     const file = e.target.files[0];
+    
+    // 5MB Validation
+    if (file.size > 5 * 1024 * 1024) {
+      showErrorAndScrollUp(`File ${file.name} is too large. Max 5MB allowed.`);
+      return;
+    }
+
     const fd = new FormData();
     fd.append('images', file);
 
     setUploading(true);
+    setError(null);
     try {
-      const res = await api.post('/admin/upload', fd, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const res = await api.post('/admin/upload', fd); // Let Axios handle boundary
       if (res.data.data && res.data.data.length > 0) {
         setFormData(prev => ({ ...prev, image_url: res.data.data[0] }));
       }
-    } catch (error) {
-      console.error(error);
-      alert('Failed to upload image');
+    } catch (err) {
+      console.error(err);
+      showErrorAndScrollUp(err.response?.data?.message || err.response?.data?.debug_error || 'Failed to upload image');
     } finally {
       setUploading(false);
     }
@@ -87,6 +102,7 @@ const AdminBlogs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     try {
       if (formData.id) {
         await api.put(`/admin/blogs/${formData.id}`, formData);
@@ -97,7 +113,7 @@ const AdminBlogs = () => {
       fetchBlogs();
     } catch (err) {
       console.error(err);
-      alert('Failed to save blog');
+      showErrorAndScrollUp(err.response?.data?.message || err.response?.data?.debug_error || 'Failed to save blog. Please check your data.');
     }
   };
 
@@ -176,13 +192,19 @@ const AdminBlogs = () => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto w-full animate-fade-in-up">
+          <div ref={modalRef} className="bg-white rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto w-full animate-fade-in-up">
             <div className="sticky top-0 bg-white border-b border-gray-100 px-8 py-5 flex justify-between items-center z-10">
-              <h2 className="text-xl font-black text-[#111827]">{formData.id ? 'Edit Blog' : 'Create Blog'}</h2>
+              <h2 className="text-xl font-black text-[#111827]">{formData.id ? 'Edit Article' : 'Compose Article'}</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-[#111827] bg-gray-50 p-2 rounded-full"><X weight="bold" size={20} /></button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-bold animate-shake">
+                    <Warning size={20} weight="fill" />
+                    <span>{error}</span>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Title</label>
                 <input required name="title" value={formData.title} onChange={handleChange} className="w-full px-5 py-4 bg-gray-50 border border-transparent rounded-xl text-sm font-bold focus:border-[#2B59FF] focus:bg-white outline-none transition-all" />

@@ -84,9 +84,10 @@ type OrderRequest struct {
 }
 
 type ShippingRateRequest struct {
-	Latitude  float64 `json:"latitude" binding:"required"`
-	Longitude float64 `json:"longitude" binding:"required"`
-	PostalCode string `json:"postal_code"`
+	Latitude  float64            `json:"latitude" binding:"required"`
+	Longitude float64            `json:"longitude" binding:"required"`
+	PostalCode string            `json:"postal_code"`
+	Items     []OrderItemRequest `json:"items" binding:"required,min=1"`
 }
 
 type OrderItemRequest struct {

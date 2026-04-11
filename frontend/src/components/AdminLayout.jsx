@@ -57,6 +57,7 @@ const AdminLayout = ({ children }) => {
         { name: 'Products', icon: <Package size={20} weight="bold" />, path: '/admin/products' },
         { name: 'Categories', icon: <Tag size={20} weight="bold" />, path: '/admin/categories' },
         { name: 'Orders', icon: <Receipt size={20} weight="bold" />, path: '/admin/orders' },
+        { name: 'Promos & Vouchers', icon: <Ticket size={20} weight="bold" />, path: '/admin/vouchers' },
       ]
     },
     {

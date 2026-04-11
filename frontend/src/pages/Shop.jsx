@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api, { getFullUrl } from '../utils/api';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
+import { calculatePromoPrice } from '../utils/promoHelper';
 import { 
   SquaresFour, List, 
   CaretDown, ShoppingCart, 
   Star, MagnifyingGlass,
-  ArrowRight, House
+  ArrowRight, House, CaretRight
 } from 'phosphor-react';
 
 const Shop = () => {
@@ -19,10 +21,11 @@ const Shop = () => {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(initialCategory || null);
   const [sortBy, setSortBy] = useState('newest');
-  const [priceRange, setPriceRange] = useState(10000000); // 10jt default max
+  const [priceRange, setPriceRange] = useState(100000000); // 100jt default max
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const { addToCart } = useCart();
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
     fetchCategories();
@@ -103,12 +106,10 @@ const Shop = () => {
                 <p className="text-[#2B59FF] text-[10px] font-black uppercase tracking-[0.2em]">Discover Premium Tech</p>
               </div>
            </div>
-           <div className="flex items-center gap-2 text-sm font-medium">
-              <Link to="/" className="text-gray-400 hover:text-[#2B59FF] transition-colors flex items-center gap-1">
-                <House size={16} /> Home
-              </Link>
-              <span className="text-gray-200">/</span>
-              <span className="text-gray-900 font-bold">Product Shop</span>
+           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+              <Link to="/" className="hover:text-gray-900 transition-colors">Home</Link>
+              <CaretRight size={10} />
+              <span className="text-gray-900">Product Shop</span>
            </div>
         </div>
       </div>
@@ -164,11 +165,11 @@ const Shop = () => {
             <div className="bg-white border border-gray-100 rounded-xl p-8 shadow-sm">
                <h2 className="text-xl font-black text-[#111827] mb-6">Price Range</h2>
                <div className="space-y-4">
-                  <input 
+                <input 
                     type="range" 
                     min="0"
-                    max="50000000"
-                    step="100000"
+                    max="100000000"
+                    step="500000"
                     value={priceRange}
                     onChange={(e) => setPriceRange(parseInt(e.target.value))}
                     className="w-full accent-[#2B59FF] cursor-pointer" 
@@ -240,9 +241,9 @@ const Shop = () => {
                          <div className="text-gray-300">No Image</div>
                        )}
                        {/* Discount Badge */}
-                       {product.special_price && (
+                       {calculatePromoPrice(product, user).isSale && (
                          <span className="absolute top-4 left-4 bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter px-3 py-1.5 rounded-lg shadow-lg">
-                            Sale
+                            SAVE {calculatePromoPrice(product, user).discountPct}%
                          </span>
                        )}
                     </Link>
@@ -269,13 +270,13 @@ const Shop = () => {
 
                        {/* Price Block */}
                        <div className="flex items-center gap-2 pt-2">
-                          {product.special_price ? (
+                          {calculatePromoPrice(product, user).isSale ? (
                             <>
                               <span className="text-gray-300 line-through text-sm font-bold">
                                 Rp {product.base_price.toLocaleString()}
                               </span>
                               <span className="text-xl font-black text-[#111827] tracking-tighter">
-                                Rp {product.special_price.toLocaleString()}
+                                Rp {calculatePromoPrice(product, user).effectivePrice.toLocaleString()}
                               </span>
                             </>
                           ) : (

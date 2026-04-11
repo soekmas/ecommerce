@@ -131,6 +131,12 @@ func (r *postgresProductRepository) IncrementStock(ctx context.Context, productI
 		UpdateColumn("stock", gorm.Expr("stock + ?", quantity)).Error
 }
 
+func (r *postgresProductRepository) IncrementTotalSold(ctx context.Context, productID uint, quantity int) error {
+	return r.db.WithContext(ctx).Model(&domain.Product{}).
+		Where("id = ?", productID).
+		UpdateColumn("total_sold", gorm.Expr("total_sold + ?", quantity)).Error
+}
+
 func (r *postgresProductRepository) CountProducts(ctx context.Context) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&domain.Product{}).Count(&count).Error

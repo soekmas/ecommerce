@@ -14,6 +14,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/xendit/xendit-go v1.0.25
 	golang.org/x/crypto v0.49.0
+	golang.org/x/time v0.5.0
 	gorm.io/driver/postgres v1.5.7
 	gorm.io/gorm v1.25.7
 )

@@ -1,32 +1,33 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
-	"github.com/vibecoding/ecommerce/config"
-	"github.com/vibecoding/ecommerce/pkg/database"
 	"github.com/vibecoding/ecommerce/internal/domain"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func main() {
-	cfg := config.LoadConfig()
-	db, err := database.NewPostgresDB(cfg)
+	dsn := "host=localhost user=user password=password dbname=gocommerce port=5432 sslmode=disable"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to connect database: %v", err)
 	}
 
-	var users []domain.User
-	db.Find(&users)
-	fmt.Println("Users:")
-	for _, u := range users {
-		fmt.Printf("ID: %d, Email: %s, Role: %s\n", u.ID, u.Email, u.Role)
+	var products []domain.Product
+	if err := db.Find(&products).Error; err != nil {
+		log.Fatalf("failed to fetch products: %v", err)
 	}
 
-	var orders []domain.Order
-	db.Preload("Items").Find(&orders)
-	fmt.Printf("\nOrders Count: %d\n", len(orders))
-	for _, o := range orders {
-		fmt.Printf("Order: %s, Status: %s, Items: %d\n", o.OrderNumber, o.Status, len(o.Items))
+	for _, p := range products {
+		if p.SpecialPrice != nil {
+			pj, _ := json.MarshalIndent(p, "", "  ")
+			fmt.Println(string(pj))
+		}
 	}
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FacebookLogo, TwitterLogo, InstagramLogo, YoutubeLogo, PaperPlaneTilt, AppStoreLogo, GooglePlayLogo, LinkedinLogo } from 'phosphor-react';
 import { useSettings } from '../context/SettingsContext';
+import { getFullUrl } from '../utils/api';
 
 const Footer = () => {
   const { settings } = useSettings();
@@ -22,10 +23,10 @@ const Footer = () => {
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">Exclusive Offers</span>
             </div>
             <h2 className="text-3xl md:text-5xl font-black leading-[1.1] tracking-tighter">
-              Join our newsletter and get <span className="text-blue-300">$20 discount</span> for your first order
+              Dapatkan Akses Eksklusif ke <span className="text-blue-300">Teknologi Terbaru</span>
             </h2>
             <p className="text-blue-100/70 font-medium max-w-md mx-auto lg:mx-0">
-              Stay ahead with the latest electronics and gadget deals. We promise no spam, just premium tech updates.
+              Jadilah yang pertama tahu tentang rilis produk flagship, penawaran khusus member, dan wawasan teknologi pilihan langsung di inbox Anda.
             </p>
           </div>
           
@@ -117,8 +118,15 @@ const Footer = () => {
       </div>
 
       {/* Bottom Bar */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-6">
-        <p className="text-sm text-gray-400 font-medium">© {new Date().getFullYear()} {settings.company_name}. All Rights Reserved.</p>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-gray-50 mt-8">
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          {settings.logo && (
+            <img src={getFullUrl(settings.logo)} alt={settings.company_name} className="h-6 w-auto object-contain transition-opacity hover:opacity-80" />
+          )}
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest leading-none">
+            © {new Date().getFullYear()} {settings.company_name}
+          </p>
+        </div>
         
         <div className="flex items-center justify-center md:justify-start gap-6">
           <a href={settings.facebook_url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-[#2B59FF] transition-all hover:scale-110">

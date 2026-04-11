@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Tag, Plus, Trash, Pencil, X, ChartBar, Ticket, Star } from 'phosphor-react';
+import { Tag, Plus, Trash, Pencil, X, ChartBar, Ticket, Star, Upload, DownloadSimple } from 'phosphor-react';
 import api, { getFullUrl } from '../utils/api';
 import Button from '../components/Button';
 import AdminModal from '../components/AdminModal';
@@ -28,12 +28,13 @@ const AdminVouchers = () => {
   const [showVoucherModal, setShowVoucherModal] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [showSpecialPriceModal, setShowSpecialPriceModal] = useState(false);
+  const [showImportPromoModal, setShowImportPromoModal] = useState(false);
   const [currentItem, setCurrentItem] = useState(null);
   const [currentProduct, setCurrentProduct] = useState(null);
 
   const defaultVoucher = { code: '', discount_type: 'percentage', discount_value: '', min_purchase: '', max_discount: '', max_total_usage: '', max_usage_per_user: '', target_type: 'global', target_value: '', start_date: '', end_date: '', is_active: true };
   const defaultPromo = { name: '', target_type: 'global', target_value: '', discount_type: 'percentage', discount_value: '', start_date: '', end_date: '', stackable_with: false };
-  const defaultSpecialPrice = { special_price: '', special_price_start: '', special_price_end: '', special_price_target: 'global', special_price_target_value: '' };
+  const defaultSpecialPrice = { special_price: '', special_price_start: '', special_price_end: '', special_price_target: 'global', special_price_target_value: '', special_price_max_qty: '' };
 
   const [voucherForm, setVoucherForm] = useState(defaultVoucher);
   const [promoForm, setPromoForm] = useState(defaultPromo);
@@ -192,6 +193,7 @@ const AdminVouchers = () => {
       special_price_end: product.special_price_end?.substring(0, 10) || '',
       special_price_target: product.special_price_target || 'global',
       special_price_target_value: product.special_price_target_value || '',
+      special_price_max_qty: product.special_price_max_qty || '',
     });
     setShowSpecialPriceModal(true);
   };
@@ -205,6 +207,7 @@ const AdminVouchers = () => {
       description: currentProduct.description,
       base_price: currentProduct.base_price,
       stock: currentProduct.stock,
+      weight: currentProduct.weight || 1000,
       specifications: currentProduct.specifications || {},
       image_urls: currentProduct.image_urls || [],
       special_price: specialPriceForm.special_price ? parseInt(specialPriceForm.special_price) : null,
@@ -212,6 +215,7 @@ const AdminVouchers = () => {
       special_price_end: specialPriceForm.special_price_end ? new Date(specialPriceForm.special_price_end).toISOString() : null,
       special_price_target: specialPriceForm.special_price_target || 'global',
       special_price_target_value: specialPriceForm.special_price_target_value || '',
+      special_price_max_qty: specialPriceForm.special_price_max_qty ? parseInt(specialPriceForm.special_price_max_qty) : null,
     };
     try {
       await api.put(`/admin/products/${currentProduct.id}`, payload);
@@ -232,14 +236,59 @@ const AdminVouchers = () => {
       description: product.description,
       base_price: product.base_price,
       stock: product.stock,
+      weight: product.weight || 1000,
       specifications: product.specifications || {},
       image_urls: product.image_urls || [],
       special_price: null,
       special_price_start: null,
       special_price_end: null,
+      special_price_target: 'global',
+      special_price_target_value: '',
+      special_price_max_qty: null,
     };
     await api.put(`/admin/products/${product.id}`, payload);
     fetchProducts(prodPage);
+  };
+
+  const handlePromoImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.name.endsWith('.csv')) {
+      alert('Please upload a valid .csv file');
+      return;
+    }
+
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+
+    try {
+      setProdLoading(true);
+      const res = await api.post('/admin/products/import-promo', uploadFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      alert(`Success! ${res.data.updated} products updated.`);
+      setShowImportPromoModal(false);
+      fetchProducts(1);
+    } catch (err) {
+      alert("Failed to import promos: " + (err.response?.data?.message || err.message));
+    } finally {
+      setProdLoading(false);
+    }
+  };
+
+  const downloadImportTemplate = () => {
+    const csvContent = "SKU, SpecialPrice, StartDate, EndDate, TargetType, TargetValue, MaxQty\n" +
+      "MOB-IP15-001, 19999000, 2026-01-01, 2026-12-31, global, , 2\n" +
+      "ACC-APG2-001, 4000000, 2026-05-10, 2026-05-15, email, vip@mail.com, \n";
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "GoCommerce_Promo_Template.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
@@ -276,6 +325,12 @@ const AdminVouchers = () => {
           <Button variant="primary" onClick={() => openPromoModal()}>
             <Plus size={20} className="mr-2" weight="bold" /> New Promo Rule
           </Button>
+        )}
+        {activeTab === 'Special Prices' && (
+          <button onClick={() => setShowImportPromoModal(true)} className="group flex items-center gap-2 px-6 py-2.5 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-all cursor-pointer font-bold text-sm shadow-sm shadow-green-100 active:scale-95">
+            <Upload size={18} weight="bold" />
+            Import Promos
+          </button>
         )}
       </div>
 
@@ -829,9 +884,74 @@ const AdminVouchers = () => {
                   </div>
                 )}
               </div>
+              <div className="mt-6 space-y-1.5">
+                <label className={labelClass}>Max Quantity Limit per User</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Leave empty for unlimited"
+                  value={specialPriceForm.special_price_max_qty}
+                  onChange={e => setSpecialPriceForm({...specialPriceForm, special_price_max_qty: e.target.value})}
+                  className={inputClass}
+                />
+              </div>
             </div>
           </form>
         )}
+      </AdminModal>
+
+      {/* ── Import Promo Modal ── */}
+      <AdminModal
+        isOpen={showImportPromoModal}
+        onClose={() => setShowImportPromoModal(false)}
+        title="Import Special Prices via CSV"
+        variant="centered"
+        size="md"
+        footer={(
+          <button 
+            type="button" 
+            onClick={() => setShowImportPromoModal(false)}
+            className="w-full py-2.5 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            Cancel
+          </button>
+        )}
+      >
+        <div className="space-y-6 pt-2">
+          {/* Option 1: Template Download */}
+          <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100 flex flex-col items-center text-center">
+            <div className="w-12 h-12 bg-white rounded-2xl flex flex-col items-center justify-center text-blue-600 shadow-sm border border-blue-100 mb-4">
+              <DownloadSimple size={24} weight="bold" />
+            </div>
+            <h4 className="text-gray-900 font-bold mb-1">1. Download Template</h4>
+            <p className="text-xs text-gray-500 mb-4 font-medium px-4">Begin by downloading our pre-formatted CSV template to ensure your syntax is correct.</p>
+            <button 
+              onClick={downloadImportTemplate}
+              className="px-6 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-blue-600 text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95"
+            >
+              Download Template (.csv)
+            </button>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-gray-100"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-3 text-[10px] font-black uppercase tracking-widest text-gray-300">Then</span>
+            </div>
+          </div>
+
+          {/* Option 2: Target File Upload */}
+          <label className="flex flex-col items-center text-center bg-gray-50/50 hover:bg-green-50/50 p-6 rounded-3xl border-2 border-dashed border-gray-200 hover:border-green-300 cursor-pointer transition-all group">
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 group-hover:text-green-600 shadow-sm border border-gray-100 group-hover:border-green-200 mb-4 transition-all group-hover:scale-110">
+              <Upload size={24} weight="bold" />
+            </div>
+            <h4 className="text-gray-900 font-bold mb-1">2. Upload Filled Template</h4>
+            <p className="text-xs text-gray-500 font-medium px-4">Ensure your dates and target arrays use valid strings before uploading for mass application.</p>
+            <input type="file" className="hidden" accept=".csv" onChange={handlePromoImport} />
+          </label>
+        </div>
       </AdminModal>
     </>
   );

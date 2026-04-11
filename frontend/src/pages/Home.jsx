@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import api, { getFullUrl } from '../utils/api';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
+import { calculatePromoPrice } from '../utils/promoHelper';
+import { useSettings } from '../context/SettingsContext';
 import { 
   ShoppingCart, 
   Package, 
@@ -25,6 +28,8 @@ const Home = () => {
   const [blogs, setBlogs] = useState([]);
   const [isLoadingBlogs, setIsLoadingBlogs] = useState(false);
   const { addToCart } = useCart();
+  const { user } = useContext(AuthContext);
+  const { settings } = useSettings();
 
   // Helper structure to map icons to category names
   const getCategoryIcon = (name, isActive) => {
@@ -38,9 +43,7 @@ const Home = () => {
     return <Package size={28} weight={weight} />;
   };
 
-  // New generated images paths
-  const HERO_IMAGE_MAIN = "/hero_banner_iphone_1775018828339.png";
-  const HERO_IMAGE_WATCH = "/hero_banner_watch_1775019052766.png";
+  // Hero images and text are now dynamically loaded from `useSettings()`
 
   useEffect(() => {
     fetchCategories();
@@ -98,58 +101,74 @@ const Home = () => {
       <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Main Large Banner */}
-          <div className="lg:col-span-2 relative h-[400px] md:h-[550px] rounded-2xl md:rounded-[2.5rem] overflow-hidden bg-[#050505] text-white flex items-center group shadow-2xl">
-             <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent z-10" />
+          <div className="lg:col-span-2 relative h-[400px] md:h-[550px] rounded-2xl md:rounded-[2.5rem] overflow-hidden bg-[#050505] text-white flex items-center group shadow-2xl border border-white/5">
+             {/* Animated Glow Blobs */}
+             <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[60%] bg-[#2B59FF]/20 blur-[120px] rounded-full mix-blend-screen pointer-events-none group-hover:bg-[#2B59FF]/30 transition-all duration-1000" />
+             <div className="absolute bottom-[-20%] left-[-10%] w-[40%] h-[50%] bg-purple-600/20 blur-[100px] rounded-full mix-blend-screen pointer-events-none group-hover:bg-purple-600/30 transition-all duration-1000" />
+             
+             <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent z-10 backdrop-blur-[2px]" />
              <div className="relative z-20 px-8 md:px-16 space-y-4 md:space-y-8 max-w-xl">
                <div className="flex items-center gap-3">
-                 <span className="w-8 md:w-12 h-[2px] bg-[#2B59FF]" />
-                 <span className="text-[#2B59FF] font-black uppercase tracking-[0.3em] text-[8px] md:text-[10px]">New Arrival</span>
+                 <span className="w-8 md:w-12 h-[2px] bg-gradient-to-r from-[#2B59FF] to-purple-500 rounded-full" />
+                 <span className="text-[#2B59FF] font-black uppercase tracking-[0.3em] text-[8px] md:text-[10px] drop-shadow-[0_0_8px_rgba(43,89,255,0.5)]">{settings.hero_main_subtitle}</span>
                </div>
-               <h1 className="text-3xl md:text-6xl font-black leading-[1.1] tracking-tighter">
-                 iPhone 15 Pro.<br />
-                 <span className="text-gray-400">Titanium Power.</span>
-               </h1>
-               <p className="text-gray-400 text-sm md:text-lg leading-relaxed font-medium line-clamp-2 md:line-clamp-none">Experience the next era of performance with the A17 Pro chip and lightweight titanium design.</p>
-               <button className="group flex items-center gap-3 px-6 md:px-10 py-3 md:py-4 bg-[#2B59FF] hover:bg-blue-600 text-white text-sm md:text-base font-bold rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-xl shadow-blue-500/25">
-                 Explore Now
+               <h1 
+                 className="text-3xl md:text-6xl font-black leading-[1.1] tracking-tighter" 
+                 dangerouslySetInnerHTML={{ __html: settings.hero_main_title || 'New Arrival' }} 
+               />
+               <p className="text-gray-400 text-sm md:text-lg leading-relaxed font-medium line-clamp-2 md:line-clamp-none">{settings.hero_main_desc}</p>
+               <a href={settings.hero_main_link || '#'} className="inline-flex items-center gap-3 px-6 md:px-10 py-3 md:py-4 bg-[#2B59FF]/10 border border-[#2B59FF]/30 hover:bg-[#2B59FF] hover:border-[#2B59FF] text-white text-sm md:text-base font-bold rounded-xl transition-all duration-500 transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(43,89,255,0.15)] hover:shadow-[0_0_30px_rgba(43,89,255,0.4)] backdrop-blur-md">
+                 {settings.hero_main_btn_text}
                  <CaretRight size={18} weight="bold" className="group-hover:translate-x-1 transition-transform" />
-               </button>
+               </a>
              </div>
-             <img 
-                src={HERO_IMAGE_MAIN} 
-                className="absolute right-[-15%] md:right-[-10%] bottom-0 h-[70%] md:h-[95%] object-contain mix-blend-screen transition-transform duration-1000 group-hover:scale-110 group-hover:rotate-2" 
-                alt="iPhone 15 Pro"
-              />
+             {settings.hero_main_image && (
+               <img 
+                  src={getFullUrl(settings.hero_main_image)} 
+                  className="absolute right-[-15%] md:right-[-10%] bottom-0 h-[70%] md:h-[95%] object-contain mix-blend-screen transition-transform duration-1000 group-hover:scale-[1.15] group-hover:-rotate-2 drop-shadow-2xl z-10 filter contrast-125" 
+                  alt="Main Banner"
+                />
+             )}
           </div>
 
           {/* Right Column Stack */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6 md:gap-8">
-             <div className="relative rounded-2xl md:rounded-[2.5rem] bg-gradient-to-br from-[#1a1a1a] to-[#000] overflow-hidden group shadow-xl h-[250px] md:flex-1 md:h-auto">
+             <a href={settings.hero_side1_link || '#'} className="block relative rounded-2xl md:rounded-[2.5rem] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-900/20 via-[#1a1a1a] to-[#050505] overflow-hidden group shadow-xl h-[250px] md:flex-1 md:h-auto border border-white/5 hover:border-white/10 transition-colors">
                <div className="p-8 md:p-10 space-y-3 md:space-y-4 relative z-10">
-                 <div className="inline-block p-1 px-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-                    <span className="text-orange-500 text-[9px] md:text-[10px] font-black uppercase tracking-wider text-xs">Editor's Choice</span>
-                 </div>
-                 <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Watch Ultra 2.</h2>
-                 <p className="text-gray-400 font-bold text-xs md:text-sm">The most capable watch.</p>
-                 <button className="text-xs md:text-sm font-black text-[#2B59FF] flex items-center gap-2 group-hover:gap-3 transition-all pt-2">
+                 {settings.hero_side1_badge && (
+                   <div className="inline-block p-1 px-3 bg-gradient-to-r from-orange-500/20 to-orange-500/5 border border-orange-500/30 rounded-lg backdrop-blur-sm shadow-[0_0_10px_rgba(249,115,22,0.2)]">
+                      <span className="text-orange-400 text-[9px] md:text-[10px] font-black uppercase tracking-wider text-xs">{settings.hero_side1_badge}</span>
+                   </div>
+                 )}
+                 <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight drop-shadow-md">{settings.hero_side1_title}</h2>
+                 <p className="text-gray-400 font-bold text-xs md:text-sm">{settings.hero_side1_desc}</p>
+                 <div className="text-xs md:text-sm font-black text-[#2B59FF] flex items-center gap-2 group-hover:gap-3 group-hover:text-white transition-all pt-2">
                     Learn more <CaretRight weight="bold" />
-                 </button>
+                 </div>
                </div>
-               <img 
-                 src={HERO_IMAGE_WATCH} 
-                 className="absolute right-[-10%] bottom-[-5%] w-[60%] md:w-[80%] object-contain transition-transform duration-700 group-hover:scale-110 group-hover:-rotate-3" 
-                 alt="Watch Ultra 2"
-               />
-             </div>
-             <div className="h-44 relative rounded-2xl md:rounded-[2.5rem] bg-[#E2E8F0] overflow-hidden group shadow-xl flex items-center p-8 md:p-10 cursor-pointer hover:bg-gray-100 transition-colors">
-                <div className="space-y-2 relative z-10">
-                  <h2 className="text-xl md:text-2xl font-black text-[#111827] tracking-tight">Accessories</h2>
-                  <p className="text-[#111827]/60 font-bold text-xs md:text-sm">Elevate your set-up.</p>
+               {settings.hero_side1_image && (
+                 <img 
+                   src={getFullUrl(settings.hero_side1_image)} 
+                   className="absolute right-[-10%] bottom-[-5%] w-[60%] md:w-[80%] object-contain transition-transform duration-1000 group-hover:scale-110 group-hover:-rotate-6 drop-shadow-2xl z-0" 
+                   alt="Side Banner 1"
+                 />
+               )}
+               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+             </a>
+             <a href={settings.hero_bottom_link || '#'} className="block h-44 relative rounded-2xl md:rounded-[2.5rem] bg-gradient-to-br from-white/95 to-gray-50/95 backdrop-blur-xl overflow-hidden group shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-white flex items-center p-8 md:p-10 cursor-pointer hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] transition-all duration-500 hover:-translate-y-1">
+                {settings.hero_bottom_image && (
+                  <img src={getFullUrl(settings.hero_bottom_image)} className="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-multiply group-hover:opacity-20 transition-opacity duration-700 group-hover:scale-105" alt="Bottom Banner" />
+                )}
+                <div className="space-y-2 relative z-10 w-full">
+                  <h2 className="text-xl md:text-2xl font-black text-[#111827] tracking-tight group-hover:bg-clip-text group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300">{settings.hero_bottom_title}</h2>
+                  <p className="text-[#111827]/50 font-bold text-xs md:text-sm group-hover:text-[#111827]/70 transition-colors uppercase tracking-widest">{settings.hero_bottom_desc}</p>
                 </div>
-                <div className="absolute right-8 md:right-10 w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/50 flex items-center justify-center transition-transform group-hover:scale-110">
-                   <Package size={32} weight="thin" className="text-gray-400 md:w-[40px] md:h-[40px]" />
-                </div>
-             </div>
+                {!settings.hero_bottom_image && (
+                  <div className="absolute right-8 md:right-10 w-20 h-20 md:w-24 md:h-24 rounded-full bg-blue-50/50 flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:bg-white group-hover:shadow-xl border border-white">
+                     <Package size={32} weight="duotone" className="text-blue-500 md:w-[40px] md:h-[40px]" />
+                  </div>
+                )}
+             </a>
           </div>
         </div>
       </section>
@@ -248,9 +267,9 @@ const Home = () => {
                   <h3 className="text-sm md:text-lg font-black text-[#111827] group-hover:text-[#2B59FF] transition-colors line-clamp-1 leading-none tracking-tight">{product.name}</h3>
                   <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
                     <span className="text-base md:text-xl font-black text-[#111827]">
-                      Rp {product.special_price?.toLocaleString('id-ID') || product.base_price?.toLocaleString('id-ID')}
+                      Rp {calculatePromoPrice(product, user).effectivePrice?.toLocaleString('id-ID')}
                     </span>
-                    {product.special_price && (
+                    {calculatePromoPrice(product, user).isSale && (
                       <span className="text-[10px] md:text-xs text-gray-400 line-through font-bold">Rp {product.base_price?.toLocaleString('id-ID')}</span>
                     )}
                   </div>

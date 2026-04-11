@@ -260,3 +260,23 @@ func (h *ProductHandler) DeleteProduct(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "product deleted"})
 }
+
+func (h *ProductHandler) ImportPromoCSV(c *gin.Context) {
+	file, _, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errors.BadRequestError("invalid file, must include 'file' field", err))
+		return
+	}
+	defer file.Close()
+
+	updatedCount, err := h.productService.ImportPromos(c.Request.Context(), file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errors.InternalServerError(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "promos imported successfully",
+		"updated": updatedCount,
+	})
+}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,7 +24,11 @@ func NewUploadHandler() *UploadHandler {
 func (h *UploadHandler) UploadMultiple(c *gin.Context) {
 	form, err := c.MultipartForm()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, errors.BadRequestError("failed to parse multipart form", err))
+		slog.Error("Failed to parse multipart form", "error", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "failed to parse multipart form",
+			"debug_error": err.Error(),
+		})
 		return
 	}
 
@@ -37,10 +42,15 @@ func (h *UploadHandler) UploadMultiple(c *gin.Context) {
 	uploadedFiles := 0
 
 	for _, file := range files {
-		// 1. Validation: Only PNG/JPG/JPEG
 		ext := strings.ToLower(filepath.Ext(file.Filename))
 		if ext != ".png" && ext != ".jpg" && ext != ".jpeg" {
 			c.JSON(http.StatusBadRequest, errors.BadRequestError(fmt.Sprintf("file %s has invalid extension. only png, jpg, jpeg allowed", file.Filename), nil))
+			return
+		}
+
+		// 2. Size Validation: Max 5MB per file
+		if file.Size > 5*1024*1024 {
+			c.JSON(http.StatusBadRequest, errors.BadRequestError(fmt.Sprintf("file %s is too large (%d bytes). maximum allowed is 5MB", file.Filename, file.Size), nil))
 			return
 		}
 

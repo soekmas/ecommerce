@@ -1,11 +1,15 @@
 # Backend
-backend/.env
+.env
+.env.*
+!.env.example
 backend/api.exe
 backend/tmp_app.exe
 backend/tmp_app.exe~
 backend/tmp_server
 backend/server_log.txt
 backend/bin/
+backend/uploads/*
+!backend/uploads/.gitkeep
 
 # Frontend
 frontend/node_modules/

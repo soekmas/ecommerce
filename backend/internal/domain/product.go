@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"io"
 	"time"
 
 	"gorm.io/gorm"
@@ -67,9 +68,12 @@ type Product struct {
 	SpecialPriceEnd          *time.Time     `gorm:"default:null" json:"special_price_end"`
 	SpecialPriceTarget       string         `gorm:"type:varchar(20);default:'global'" json:"special_price_target"`       // global | email | domain
 	SpecialPriceTargetValue  string         `gorm:"default:''" json:"special_price_target_value"`                         // user@mail.com | @company.com
+	SpecialPriceMaxQty       *int           `gorm:"default:null" json:"special_price_max_qty"`                            // nil = unlimited
 	Stock                    int            `gorm:"not null;default:0" json:"stock"`
+	Weight                   int64          `gorm:"not null;default:1000" json:"weight"`
 	Specifications           JSONMap        `gorm:"type:jsonb" json:"specifications"`
 	ImageURLs                JSONArray      `gorm:"type:jsonb" json:"image_urls"`
+	TotalSold                int            `gorm:"not null;default:0" json:"total_sold"`
 	IsActive                 bool           `gorm:"default:true" json:"is_active"`
 	CreatedAt                time.Time      `json:"created_at"`
 	UpdatedAt                time.Time      `json:"updated_at"`
@@ -95,7 +99,9 @@ type ProductRequest struct {
 	SpecialPriceEnd         *time.Time        `json:"special_price_end"`
 	SpecialPriceTarget      string            `json:"special_price_target"`       // global | email | domain
 	SpecialPriceTargetValue string            `json:"special_price_target_value"` // user@mail.com | @company.com
+	SpecialPriceMaxQty      *int              `json:"special_price_max_qty"`
 	Stock                   int               `json:"stock" binding:"required,min=0"`
+	Weight                  int64             `json:"weight" binding:"required,min=1"`
 	Specifications          map[string]string `json:"specifications"`
 	ImageURLs               []string          `json:"image_urls"`
 	IsActive                bool              `json:"is_active"`
@@ -130,6 +136,7 @@ type ProductRepository interface {
 	// For Flash Sales and Checkout
 	DecrementStock(ctx context.Context, productID uint, quantity int) error
 	IncrementStock(ctx context.Context, productID uint, quantity int) error
+	IncrementTotalSold(ctx context.Context, productID uint, quantity int) error
 	CountProducts(ctx context.Context) (int64, error)
 }
 
@@ -145,4 +152,5 @@ type ProductService interface {
 	ListProducts(ctx context.Context, filter ProductFilter) ([]*Product, error)
 	UpdateProduct(ctx context.Context, id uint, req *ProductRequest) error
 	DeleteProduct(ctx context.Context, id uint) error
+	ImportPromos(ctx context.Context, file io.Reader) (int, error)
 }
